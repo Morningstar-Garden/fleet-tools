@@ -40,14 +40,14 @@ public class HomeCommand {
         
         ServerWorld homeWorld = PlayerDataManager.getHomeWorld(player);
         if (homeWorld == null) {
-            homeWorld = player.getServerWorld();
+            homeWorld = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld());
         }
         
         // Store current position for /back command
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+        PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
         
         // Teleport to home
-        player.teleport(homeWorld, homePos.x, homePos.y, homePos.z, player.getYaw(), player.getPitch());
+        player.teleport(homeWorld, homePos.x, homePos.y, homePos.z, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
         player.sendMessage(Text.literal("§aTeleported to home."), false);
         
         return 1;
@@ -56,8 +56,8 @@ public class HomeCommand {
     private static int executeSetHome(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         
-        Vec3d currentPos = player.getPos();
-        ServerWorld currentWorld = player.getServerWorld();
+        Vec3d currentPos = ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos();
+        ServerWorld currentWorld = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld());
         
         PlayerDataManager.setHome(player, currentPos, currentWorld);
         player.sendMessage(Text.literal("§aHome set at your current location."), false);

@@ -30,7 +30,7 @@ public class PlayerJoinHandler {
             ServerPlayerEntity player = handler.getPlayer();
             
             // Save their current location as their last known location
-            PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+            PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
         });
     }
 }

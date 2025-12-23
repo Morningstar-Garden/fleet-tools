@@ -81,10 +81,10 @@ public class GamemodeCommand {
     private static int changeGameMode(ServerPlayerEntity player, GameMode gameMode, ServerCommandSource source) {
         if (player.interactionManager.getGameMode() == gameMode) {
             if (source.getPlayer() == player) {
-                source.sendError(Text.literal("§cYou are already in " + gameMode.getName() + " mode."));
+                source.sendError(Text.literal("§cYou are already in " + gameMode.name() + " mode."));
             } else {
                 source.sendError(Text.literal(
-                        "§c" + player.getName().getString() + " is already in " + gameMode.getName() + " mode."));
+                        "§c" + player.getGameProfile().name() + " is already in " + gameMode.name() + " mode."));
             }
             return 0;
         }
@@ -92,11 +92,11 @@ public class GamemodeCommand {
         player.changeGameMode(gameMode);
 
         if (source.getPlayer() == player) {
-            player.sendMessage(Text.literal("§aYour game mode has been changed to " + gameMode.getName() + "."), false);
+            player.sendMessage(Text.literal("§aYour game mode has been changed to " + gameMode.name() + "."), false);
         } else {
-            player.sendMessage(Text.literal("§aYour game mode has been changed to " + gameMode.getName() + "."), false);
+            player.sendMessage(Text.literal("§aYour game mode has been changed to " + gameMode.name() + "."), false);
             source.sendFeedback(() -> Text.literal(
-                    "§aChanged " + player.getName().getString() + "'s game mode to " + gameMode.getName() + "."), true);
+                    "§aChanged " + player.getGameProfile().name() + "'s game mode to " + gameMode.name() + "."), true);
         }
 
         return 1;

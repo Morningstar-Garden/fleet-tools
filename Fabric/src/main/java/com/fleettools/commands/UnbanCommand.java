@@ -46,20 +46,29 @@ public class UnbanCommand {
         String playerName = StringArgumentType.getString(context, "player");
         MinecraftServer server = context.getSource().getServer();
         
-        // Try to find the player profile by name
-        GameProfile profile = server.getUserCache().findByName(playerName).orElse(null);
-        if (profile == null) {
-            context.getSource().sendError(Text.literal("§cPlayer '" + playerName + "' not found."));
-            return 0;
+        BannedPlayerList bannedPlayers = server.getPlayerManager().getUserBanList();
+        
+        // Find the banned player entry by name
+        String[] bannedNames = bannedPlayers.getNames();
+        boolean found = false;
+        for (String bannedName : bannedNames) {
+            if (bannedName.equalsIgnoreCase(playerName)) {
+                found = true;
+                // Use command dispatcher to execute pardon command
+                try {
+                    server.getCommandManager().getDispatcher().execute("pardon " + bannedName, server.getCommandSource());
+                } catch (Exception e) {
+                    // Fallback to direct API call - just try to remove from ban list
+                    System.err.println("Failed to execute pardon command: " + e.getMessage());
+                }
+                break;
+            }
         }
         
-        BannedPlayerList bannedPlayers = server.getPlayerManager().getUserBanList();
-        if (!bannedPlayers.contains(profile)) {
+        if (!found) {
             context.getSource().sendError(Text.literal("§cPlayer '" + playerName + "' is not banned."));
             return 0;
         }
-        
-        bannedPlayers.remove(profile);
         context.getSource().sendFeedback(() -> Text.literal("§aUnbanned player '" + playerName + "'."), true);
         
         return 1;

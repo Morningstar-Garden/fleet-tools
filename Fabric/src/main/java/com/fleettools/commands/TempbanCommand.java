@@ -12,7 +12,7 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.network.packet.s2c.play.DisconnectS2CPacket;
+import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import com.fleettools.data.PlayerDataManager;
 
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +29,7 @@ public class TempbanCommand {
     
     private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
         context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
-            builder.suggest(player.getName().getString());
+            builder.suggest(player.getGameProfile().name());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
@@ -92,7 +92,7 @@ public class TempbanCommand {
         target.networkHandler.disconnect(Text.literal(banMessage));
         
         // Notify administrators
-        String adminMessage = "§aTemporarily banned " + target.getName().getString() + " for " + timeString + " (Reason: " + reason + ")";
+        String adminMessage = "§aTemporarily banned " + target.getGameProfile().name() + " for " + timeString + " (Reason: " + reason + ")";
         context.getSource().sendFeedback(() -> Text.literal(adminMessage), true);
         
         return 1;

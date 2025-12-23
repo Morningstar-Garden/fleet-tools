@@ -55,20 +55,20 @@ public class WarpCommand {
     private static int executeWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        PlayerDataManager.WarpData warp = PlayerDataManager.getWarp(name, player.getServer());
+        PlayerDataManager.WarpData warp = PlayerDataManager.getWarp(name, ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer());
         if (warp == null) {
             player.sendMessage(Text.literal("§cWarp '" + name + "' does not exist."), false);
             return 0;
         }
-        Identifier worldId = new Identifier(warp.world);
+        Identifier worldId = Identifier.of(warp.world);
         RegistryKey<net.minecraft.world.World> worldKey = RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, worldId);
-        ServerWorld world = player.getServer().getWorld(worldKey);
+        ServerWorld world = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer().getWorld(worldKey);
         if (world == null) {
             player.sendMessage(Text.literal("§cWarp world not found."), false);
             return 0;
         }
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
-        player.teleport(world, warp.location.x, warp.location.y, warp.location.z, player.getYaw(), player.getPitch());
+        PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
+        player.teleport(world, warp.location.x, warp.location.y, warp.location.z, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
         player.sendMessage(Text.literal("§aWarped to '" + name + "'."), false);
         return 1;
     }
@@ -76,8 +76,8 @@ public class WarpCommand {
     private static int executeSetWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        Vec3d pos = player.getPos();
-        ServerWorld world = player.getServerWorld();
+        Vec3d pos = ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos();
+        ServerWorld world = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld());
         PlayerDataManager.setWarp(name, pos, world);
         player.sendMessage(Text.literal("§aWarp '" + name + "' set at your current location."), false);
         return 1;
@@ -86,7 +86,7 @@ public class WarpCommand {
     private static int executeDelWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        boolean removed = PlayerDataManager.delWarp(name, player.getServer());
+        boolean removed = PlayerDataManager.delWarp(name, ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer());
         if (removed) {
             player.sendMessage(Text.literal("§aWarp '" + name + "' deleted."), false);
             return 1;

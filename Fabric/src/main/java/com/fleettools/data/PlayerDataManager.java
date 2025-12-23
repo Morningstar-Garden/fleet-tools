@@ -43,7 +43,7 @@ public class PlayerDataManager {
 
     public static void loadWarps(MinecraftServer server) {
         try {
-            Path warpsFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(WARPS_FILE);
+            Path warpsFile = server.getRunDirectory().resolve(DATA_FOLDER).resolve(WARPS_FILE);
             if (Files.exists(warpsFile)) {
                 String json = Files.readString(warpsFile);
                 Map<String, WarpData> loaded = GSON.fromJson(json, WARP_MAP_TYPE);
@@ -57,7 +57,7 @@ public class PlayerDataManager {
 
     public static void saveWarps(MinecraftServer server) {
         try {
-            Path warpsFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(WARPS_FILE);
+            Path warpsFile = server.getRunDirectory().resolve(DATA_FOLDER).resolve(WARPS_FILE);
             String json = GSON.toJson(warps, WARP_MAP_TYPE);
             Files.writeString(warpsFile, json);
         } catch (IOException e) {
@@ -138,32 +138,39 @@ public class PlayerDataManager {
             this.mainInventory = new ItemStack[36];
             this.armorInventory = new ItemStack[4];
             this.offhandInventory = new ItemStack[1];
-            this.selectedSlot = player.getInventory().selectedSlot;
+            com.fleettools.mixin.accessor.PlayerInventoryAccessor inv = (com.fleettools.mixin.accessor.PlayerInventoryAccessor) player.getInventory();
+            this.selectedSlot = inv.getSelectedSlot();
             this.deathTime = System.currentTimeMillis();
             
             // Copy inventory contents
             for (int i = 0; i < 36; i++) {
-                this.mainInventory[i] = player.getInventory().main.get(i).copy();
+                this.mainInventory[i] = inv.getMain().get(i).copy();
             }
+            // Copy armor - armor slots are 36-39 in combined list
             for (int i = 0; i < 4; i++) {
-                this.armorInventory[i] = player.getInventory().armor.get(i).copy();
+                this.armorInventory[i] = player.getInventory().getStack(36 + i).copy();
             }
-            this.offhandInventory[0] = player.getInventory().offHand.get(0).copy();
+            // Copy offhand - offhand is slot 40 in combined list
+            this.offhandInventory[0] = player.getInventory().getStack(40).copy();
         }
         
         public void restore(ServerPlayerEntity player) {
             // Clear current inventory
             player.getInventory().clear();
             
+            com.fleettools.mixin.accessor.PlayerInventoryAccessor inv = (com.fleettools.mixin.accessor.PlayerInventoryAccessor) player.getInventory();
+            
             // Restore saved inventory
             for (int i = 0; i < 36; i++) {
-                player.getInventory().main.set(i, this.mainInventory[i].copy());
+                inv.getMain().set(i, this.mainInventory[i].copy());
             }
+            // Restore armor - armor slots are 36-39 in combined list
             for (int i = 0; i < 4; i++) {
-                player.getInventory().armor.set(i, this.armorInventory[i].copy());
+                player.getInventory().setStack(36 + i, this.armorInventory[i].copy());
             }
-            player.getInventory().offHand.set(0, this.offhandInventory[0].copy());
-            player.getInventory().selectedSlot = this.selectedSlot;
+            // Restore offhand - offhand is slot 40 in combined list
+            player.getInventory().setStack(40, this.offhandInventory[0].copy());
+            inv.setSelectedSlot(this.selectedSlot);
             
             // Mark inventory as changed
             player.currentScreenHandler.sendContentUpdates();
@@ -183,7 +190,7 @@ public class PlayerDataManager {
     public static void init(MinecraftServer server) {
         serverInstance = server; // Store server instance for later use
         try {
-            Path dataDir = server.getRunDirectory().toPath().resolve(DATA_FOLDER);
+            Path dataDir = server.getRunDirectory().resolve(DATA_FOLDER);
             Path playersDir = dataDir.resolve(PLAYERS_FOLDER);
 
             if (!Files.exists(dataDir)) {
@@ -203,7 +210,7 @@ public class PlayerDataManager {
 
     private static void loadGlobalData(MinecraftServer server) {
         try {
-            Path globalFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
+            Path globalFile = server.getRunDirectory().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
             if (Files.exists(globalFile)) {
                 String json = Files.readString(globalFile);
                 globalData = GSON.fromJson(json, GlobalData.class);
@@ -218,7 +225,7 @@ public class PlayerDataManager {
 
     private static void saveGlobalData(MinecraftServer server) {
         try {
-            Path globalFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
+            Path globalFile = server.getRunDirectory().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
             String json = GSON.toJson(globalData);
             Files.writeString(globalFile, json);
         } catch (IOException e) {
@@ -235,7 +242,7 @@ public class PlayerDataManager {
 
         // Load from file
         try {
-            Path playerFile = player.getServer().getRunDirectory().toPath()
+            Path playerFile = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer().getRunDirectory()
                     .resolve(DATA_FOLDER)
                     .resolve(PLAYERS_FOLDER)
                     .resolve(uuid.toString() + ".json");
@@ -248,7 +255,7 @@ public class PlayerDataManager {
             }
         } catch (IOException e) {
             System.err
-                    .println("Failed to load player data for " + player.getName().getString() + ": " + e.getMessage());
+                    .println("Failed to load player data for " + player.getGameProfile().name() + ": " + e.getMessage());
         }
 
         // Create new data
@@ -265,7 +272,7 @@ public class PlayerDataManager {
             return;
 
         try {
-            Path playerFile = player.getServer().getRunDirectory().toPath()
+            Path playerFile = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer().getRunDirectory()
                     .resolve(DATA_FOLDER)
                     .resolve(PLAYERS_FOLDER)
                     .resolve(uuid.toString() + ".json");
@@ -274,7 +281,7 @@ public class PlayerDataManager {
             Files.writeString(playerFile, json);
         } catch (IOException e) {
             System.err
-                    .println("Failed to save player data for " + player.getName().getString() + ": " + e.getMessage());
+                    .println("Failed to save player data for " + player.getGameProfile().name() + ": " + e.getMessage());
         }
     }
 
@@ -289,9 +296,9 @@ public class PlayerDataManager {
         if (data.homeWorld == null)
             return null;
 
-        Identifier worldId = new Identifier(data.homeWorld);
+        Identifier worldId = Identifier.of(data.homeWorld);
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-        return player.getServer().getWorld(worldKey);
+        return ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer().getWorld(worldKey);
     }
 
     public static void setHome(ServerPlayerEntity player, Vec3d location, ServerWorld world) {
@@ -311,7 +318,7 @@ public class PlayerDataManager {
             return server.getOverworld();
         }
 
-        Identifier worldId = new Identifier(globalData.spawnWorld);
+        Identifier worldId = Identifier.of(globalData.spawnWorld);
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
         ServerWorld world = server.getWorld(worldKey);
         return world != null ? world : server.getOverworld();
@@ -334,9 +341,9 @@ public class PlayerDataManager {
         if (data.lastWorld == null)
             return null;
 
-        Identifier worldId = new Identifier(data.lastWorld);
+        Identifier worldId = Identifier.of(data.lastWorld);
         RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-        return player.getServer().getWorld(worldKey);
+        return ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer().getWorld(worldKey);
     }
 
     public static void setLastLocation(ServerPlayerEntity player, Vec3d location, ServerWorld world) {
@@ -457,7 +464,7 @@ public class PlayerDataManager {
                 String json = Files.readString(playerFile);
                 PlayerData data = GSON.fromJson(json, PlayerData.class);
                 if (data != null && data.lastWorld != null) {
-                    Identifier worldId = new Identifier(data.lastWorld);
+                    Identifier worldId = Identifier.of(data.lastWorld);
                     RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
                     return server.getWorld(worldKey);
                 }
@@ -472,7 +479,7 @@ public class PlayerDataManager {
         if (serverInstance == null) {
             return null;
         }
-        return serverInstance.getRunDirectory().toPath()
+        return serverInstance.getRunDirectory()
                 .resolve(DATA_FOLDER)
                 .resolve(PLAYERS_FOLDER)
                 .resolve(uuid.toString() + ".json");

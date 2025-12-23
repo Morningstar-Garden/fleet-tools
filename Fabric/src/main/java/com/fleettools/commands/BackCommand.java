@@ -35,14 +35,14 @@ public class BackCommand {
         
         ServerWorld lastWorld = PlayerDataManager.getLastWorld(player);
         if (lastWorld == null) {
-            lastWorld = player.getServerWorld();
+            lastWorld = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld());
         }
         
         // Store current position as new last location
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+        PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
         
         // Teleport to previous location
-        player.teleport(lastWorld, lastPos.x, lastPos.y, lastPos.z, player.getYaw(), player.getPitch());
+        player.teleport(lastWorld, lastPos.x, lastPos.y, lastPos.z, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
         player.sendMessage(Text.literal("Teleported to your previous location."), false);
         
         return 1;

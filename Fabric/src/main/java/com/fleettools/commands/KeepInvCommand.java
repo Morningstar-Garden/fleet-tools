@@ -70,8 +70,8 @@ public class KeepInvCommand {
                 : "§cKeep inventory disabled. You will lose your items on death.";
         target.sendMessage(Text.literal(targetMessage), false);
 
-        String senderMessage = newState ? "§aKeep inventory enabled for " + target.getGameProfile().getName() + "."
-                : "§cKeep inventory disabled for " + target.getGameProfile().getName() + ".";
+        String senderMessage = newState ? "§aKeep inventory enabled for " + target.getGameProfile().name() + "."
+                : "§cKeep inventory disabled for " + target.getGameProfile().name() + ".";
         source.sendFeedback(() -> Text.literal(senderMessage), true);
 
         return 1;

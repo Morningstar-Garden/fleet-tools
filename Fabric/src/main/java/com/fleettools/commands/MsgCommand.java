@@ -38,8 +38,8 @@ public class MsgCommand {
         }
         
         // Format messages
-        String targetMsg = "§7[§e" + sender.getName().getString() + " → You§7] §f" + message;
-        String senderMsg = "§7[§eYou → " + target.getName().getString() + "§7] §f" + message;
+        String targetMsg = "§7[§e" + sender.getGameProfile().name() + " → You§7] §f" + message;
+        String senderMsg = "§7[§eYou → " + target.getGameProfile().name() + "§7] §f" + message;
         
         // Send messages using actionbar packets (bypasses chat completely)
         target.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(

@@ -25,7 +25,7 @@ public class MuteCommand {
 
     private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
         context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
-            builder.suggest(player.getName().getString());
+            builder.suggest(player.getGameProfile().name());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
@@ -34,7 +34,7 @@ public class MuteCommand {
         // Get all muted players from PlayerDataManager
         context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
             if (PlayerDataManager.isMuted(player)) {
-                builder.suggest(player.getName().getString());
+                builder.suggest(player.getGameProfile().name());
             }
         });
         return CompletableFuture.completedFuture(builder.build());
@@ -62,12 +62,12 @@ public class MuteCommand {
         ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "player");
         
         if (PlayerDataManager.isMuted(target)) {
-            context.getSource().sendError(Text.literal("§c" + target.getName().getString() + " is already muted."));
+            context.getSource().sendError(Text.literal("§c" + target.getGameProfile().name() + " is already muted."));
             return 0;
         }
         
         PlayerDataManager.setMuted(target, true);
-        context.getSource().sendFeedback(() -> Text.literal("§aMuted " + target.getName().getString() + "."), true);
+        context.getSource().sendFeedback(() -> Text.literal("§aMuted " + target.getGameProfile().name() + "."), true);
         target.sendMessage(Text.literal("§cYou have been muted."), false);
         
         return 1;
@@ -77,12 +77,12 @@ public class MuteCommand {
         ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "player");
         
         if (!PlayerDataManager.isMuted(target)) {
-            context.getSource().sendError(Text.literal("§c" + target.getName().getString() + " is not muted."));
+            context.getSource().sendError(Text.literal("§c" + target.getGameProfile().name() + " is not muted."));
             return 0;
         }
         
         PlayerDataManager.setMuted(target, false);
-        context.getSource().sendFeedback(() -> Text.literal("§aUnmuted " + target.getName().getString() + "."), true);
+        context.getSource().sendFeedback(() -> Text.literal("§aUnmuted " + target.getGameProfile().name() + "."), true);
         target.sendMessage(Text.literal("§aYou have been unmuted."), false);
         
         return 1;

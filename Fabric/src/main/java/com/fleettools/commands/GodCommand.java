@@ -55,8 +55,8 @@ public class GodCommand {
         
         if (context.getSource().getPlayer() != target) {
             String feedbackMessage = newState ? 
-                "§aEnabled god mode for " + target.getName().getString() + "." :
-                "§cDisabled god mode for " + target.getName().getString() + ".";
+                "§aEnabled god mode for " + target.getGameProfile().name() + "." :
+                "§cDisabled god mode for " + target.getGameProfile().name() + ".";
             context.getSource().sendFeedback(() -> Text.literal(feedbackMessage), true);
         }
         

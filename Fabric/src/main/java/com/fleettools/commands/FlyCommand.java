@@ -55,8 +55,8 @@ public class FlyCommand {
         
         if (context.getSource().getPlayer() != target) {
             String feedbackMessage = newState ? 
-                "§aEnabled flight for " + target.getName().getString() + "." :
-                "§cDisabled flight for " + target.getName().getString() + ".";
+                "§aEnabled flight for " + target.getGameProfile().name() + "." :
+                "§cDisabled flight for " + target.getGameProfile().name() + ".";
             context.getSource().sendFeedback(() -> Text.literal(feedbackMessage), true);
         }
         

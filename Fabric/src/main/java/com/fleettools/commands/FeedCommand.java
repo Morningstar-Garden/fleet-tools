@@ -44,7 +44,7 @@ public class FeedCommand {
         
         if (context.getSource().getPlayer() != target) {
             context.getSource().sendFeedback(() -> 
-                Text.literal("§aFed " + target.getName().getString() + "."), true);
+                Text.literal("§aFed " + target.getGameProfile().name() + "."), true);
         }
         
         return 1;

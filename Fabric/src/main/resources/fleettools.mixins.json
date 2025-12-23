@@ -2,13 +2,17 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.fleettools.mixin",
-  "compatibilityLevel": "JAVA_17",
+  "compatibilityLevel": "JAVA_21",
   "refmap": "fleettools_fabric.refmap.json",
   "priority": 500,
   "mixins": [
     "ServerPlayerEntityMixin",
     "ServerPlayNetworkHandlerMixin",
-    "LivingEntityDeathMixin"
+    "LivingEntityDeathMixin",
+    "accessor.EntityAccessor",
+    "accessor.ServerPlayerEntityAccessor",
+    "accessor.PlayerInventoryAccessor",
+    "accessor.EntityPosAccessor"
   ],
   "client": [],
   "server": [

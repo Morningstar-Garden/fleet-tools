@@ -27,7 +27,7 @@ public class TopCommand {
 
     private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
         context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
-            builder.suggest(player.getName().getString());
+            builder.suggest(player.getGameProfile().name());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
@@ -55,7 +55,7 @@ public class TopCommand {
     }
 
     private static int teleportToTop(ServerPlayerEntity target, ServerPlayerEntity executor, CommandContext<ServerCommandSource> context) {
-        ServerWorld world = target.getServerWorld();
+        ServerWorld world = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)target).getWorld());
         BlockPos currentPos = target.getBlockPos();
         
         // Find the highest non-air block at the player's X/Z coordinates
@@ -70,23 +70,23 @@ public class TopCommand {
         if (safePos == null) {
             String message = target == executor ? 
                 "§cNo safe location found above you." : 
-                "§cNo safe location found above " + target.getName().getString() + ".";
+                "§cNo safe location found above " + target.getGameProfile().name() + ".";
             executor.sendMessage(Text.literal(message), false);
             return 0;
         }
         
         // Save the target's current location for /back (only for the person being teleported)
-        PlayerDataManager.setLastLocation(target, target.getPos(), target.getServerWorld());
+        PlayerDataManager.setLastLocation(target, ((com.fleettools.mixin.accessor.EntityPosAccessor) target).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)target).getWorld()));
         
         // Teleport the target to the top position (slightly above the block for safety)
-        target.teleport(world, safePos.getX() + 0.5, safePos.getY(), safePos.getZ() + 0.5, target.getYaw(), target.getPitch());
+        target.teleport(world, safePos.getX() + 0.5, safePos.getY(), safePos.getZ() + 0.5, java.util.Set.of(), target.getYaw(), target.getPitch(), false);
         
         // Send appropriate messages
         if (target == executor) {
             target.sendMessage(Text.literal("§aTeleported to the top!"), false);
         } else {
-            executor.sendMessage(Text.literal("§aTeleported " + target.getName().getString() + " to the top."), false);
-            target.sendMessage(Text.literal("§aYou have been teleported to the top by " + executor.getName().getString() + "."), false);
+            executor.sendMessage(Text.literal("§aTeleported " + target.getGameProfile().name() + " to the top."), false);
+            target.sendMessage(Text.literal("§aYou have been teleported to the top by " + executor.getGameProfile().name() + "."), false);
         }
         
         return 1;

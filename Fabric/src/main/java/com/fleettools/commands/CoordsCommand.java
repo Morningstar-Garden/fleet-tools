@@ -24,7 +24,7 @@ public class CoordsCommand {
 
     private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
         context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
-            builder.suggest(player.getName().getString());
+            builder.suggest(player.getGameProfile().name());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
@@ -44,13 +44,13 @@ public class CoordsCommand {
         
         // Get player's current position
         BlockPos pos = target.getBlockPos();
-        World world = target.getWorld();
+        World world = ((com.fleettools.mixin.accessor.EntityAccessor)target).getWorld();
         String worldName = getWorldDisplayName(world);
         
         // Format coordinates nicely
         String coordsMessage = String.format(
             "§b%s's Location:\n§7World: §e%s\n§7X: §a%d §7Y: §a%d §7Z: §a%d",
-            target.getName().getString(),
+            target.getGameProfile().name(),
             worldName,
             pos.getX(),
             pos.getY(),

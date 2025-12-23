@@ -4,6 +4,7 @@ import com.fleettools.data.PlayerDataManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -13,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class LivingEntityDeathMixin {
     
     @Inject(method = "dropLoot", at = @At("HEAD"), cancellable = true)
-    private void fleettools_onDropLoot(DamageSource damageSource, boolean bl, CallbackInfo ci) {
+    private void fleettools_onDropLoot(ServerWorld world, DamageSource damageSource, boolean bl, CallbackInfo ci) {
         LivingEntity entity = (LivingEntity) (Object) this;
         
         // Only handle players
@@ -28,7 +29,7 @@ public class LivingEntityDeathMixin {
     }
 
     @Inject(method = "drop", at = @At("HEAD"), cancellable = true)
-    private void fleettools_onDrop(DamageSource damageSource, CallbackInfo ci) {
+    private void fleettools_onDrop(ServerWorld world, DamageSource damageSource, CallbackInfo ci) {
         LivingEntity entity = (LivingEntity) (Object) this;
         
         // Only handle players

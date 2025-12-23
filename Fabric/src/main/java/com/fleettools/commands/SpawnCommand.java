@@ -10,6 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import com.fleettools.data.PlayerDataManager;
 
@@ -33,22 +34,24 @@ public class SpawnCommand {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         
         Vec3d spawnPos = PlayerDataManager.getSpawn();
-        ServerWorld spawnWorld = PlayerDataManager.getSpawnWorld(player.getServer());
+        ServerWorld spawnWorld = PlayerDataManager.getSpawnWorld(((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer());
         
         if (spawnPos == null) {
             // Fall back to world spawn if no custom spawn is set
+            // Use sea level as default spawn Y coordinate
+            BlockPos worldSpawn = new BlockPos(0, spawnWorld.getSeaLevel(), 0);
             spawnPos = new Vec3d(
-                spawnWorld.getSpawnPos().getX() + 0.5,
-                spawnWorld.getSpawnPos().getY(),
-                spawnWorld.getSpawnPos().getZ() + 0.5
+                worldSpawn.getX() + 0.5,
+                worldSpawn.getY(),
+                worldSpawn.getZ() + 0.5
             );
         }
         
         // Store current position for /back command
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+        PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
         
         // Teleport to spawn
-        player.teleport(spawnWorld, spawnPos.x, spawnPos.y, spawnPos.z, player.getYaw(), player.getPitch());
+        player.teleport(spawnWorld, spawnPos.x, spawnPos.y, spawnPos.z, java.util.Set.of(), player.getYaw(), player.getPitch(), false);
         player.sendMessage(Text.literal("§aTeleported to spawn."), false);
         
         return 1;
@@ -57,8 +60,8 @@ public class SpawnCommand {
     private static int executeSetSpawn(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
         
-        Vec3d currentPos = player.getPos();
-        ServerWorld currentWorld = player.getServerWorld();
+        Vec3d currentPos = ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos();
+        ServerWorld currentWorld = ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld());
         
         PlayerDataManager.setSpawn(currentPos, currentWorld);
         player.sendMessage(Text.literal("§aSpawn set at your current location."), false);

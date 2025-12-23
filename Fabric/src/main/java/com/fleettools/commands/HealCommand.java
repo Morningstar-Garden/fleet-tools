@@ -44,7 +44,7 @@ public class HealCommand {
         
         if (context.getSource().getPlayer() != target) {
             context.getSource().sendFeedback(() -> 
-                Text.literal("§aHealed " + target.getName().getString() + "."), true);
+                Text.literal("§aHealed " + target.getGameProfile().name() + "."), true);
         }
         
         return 1;

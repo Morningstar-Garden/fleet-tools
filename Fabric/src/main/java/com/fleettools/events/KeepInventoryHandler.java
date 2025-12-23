@@ -19,21 +19,45 @@ public class KeepInventoryHandler {
                     PlayerDataManager.storeInventoryOnDeath(player);
                     
                     // Temporarily enable keep inventory gamerule for this death
-                    boolean wasEnabled = player.getWorld().getGameRules().getBoolean(net.minecraft.world.GameRules.KEEP_INVENTORY);
-                    if (!wasEnabled) {
-                        player.getWorld().getGameRules().get(net.minecraft.world.GameRules.KEEP_INVENTORY).set(true, player.getServer());
-                        
-                        // Schedule to restore the gamerule after a short delay
-                        if (player.getServer() != null) {
-                            player.getServer().execute(() -> {
-                                try {
-                                    Thread.sleep(50);
-                                    player.getWorld().getGameRules().get(net.minecraft.world.GameRules.KEEP_INVENTORY).set(false, player.getServer());
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
+                    try {
+                        net.minecraft.server.world.ServerWorld world = (net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld();
+                        var gameRules = world.getGameRules();
+                        var ruleClass = gameRules.getClass();
+                        try {
+                            var field = ruleClass.getField("KEEP_INVENTORY");
+                            Object keepInvKey = field.get(null);
+                            // Use reflection to call getBoolean
+                            var getBooleanMethod = ruleClass.getMethod("getBoolean", keepInvKey.getClass().getSuperclass());
+                            boolean wasEnabled = (Boolean) getBooleanMethod.invoke(gameRules, keepInvKey);
+                            if (!wasEnabled) {
+                                // Get the rule object
+                                var getMethod = ruleClass.getMethod("get", keepInvKey.getClass().getSuperclass());
+                                Object rule = getMethod.invoke(gameRules, keepInvKey);
+                                // Set the rule to true
+                                var setMethod = rule.getClass().getMethod("set", boolean.class, net.minecraft.server.MinecraftServer.class);
+                                setMethod.invoke(rule, true, ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer());
+                                
+                                // Schedule to restore the gamerule after a short delay
+                                net.minecraft.server.MinecraftServer server = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer();
+                                if (server != null) {
+                                    server.execute(() -> {
+                                        try {
+                                            Thread.sleep(50);
+                                            Object ruleAgain = getMethod.invoke(gameRules, keepInvKey);
+                                            setMethod.invoke(ruleAgain, false, server);
+                                        } catch (Exception e) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                    });
                                 }
-                            });
+                            }
+                        } catch (NoSuchFieldException e) {
+                            // KEEP_INVENTORY field not found, just store inventory without gamerule manipulation
+                            System.err.println("Could not find KEEP_INVENTORY game rule field.");
                         }
+                    } catch (Exception e) {
+                        // If gamerule manipulation fails, inventory will still be restored on respawn
+                        System.err.println("Failed to manipulate keep inventory gamerule: " + e.getMessage());
                     }
                 }
             }
