@@ -69,9 +69,6 @@ public class KeepInventoryHandler {
             if (!alive && PlayerDataManager.hasStoredInventory(newPlayer)) {
                 // Restore inventory after respawn
                 PlayerDataManager.restoreInventoryOnRespawn(newPlayer);
-                
-                // Send confirmation message
-                newPlayer.sendMessage(net.minecraft.text.Text.literal("§aYour inventory has been restored! §7(XP was still lost)"), false);
             }
         });
         
@@ -82,8 +79,6 @@ public class KeepInventoryHandler {
                 // Player joined while having a stored inventory (probably disconnected while dead)
                 PlayerDataManager.restoreInventoryOnRespawn(player);
                 
-                // Send confirmation message
-                player.sendMessage(net.minecraft.text.Text.literal("§aYour inventory has been restored from before you died! §7(XP was still lost)"), false);
             }
         });
     }
