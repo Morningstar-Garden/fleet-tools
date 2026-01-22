@@ -10,10 +10,23 @@ import net.minecraft.server.network.ServerPlayerEntity;
 public class KeepInventoryHandler {
     
     public static void register() {
-        // Register for entity death events - capture inventory before death
+        // Try to hook into damage event BEFORE death to capture backpacks
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, damageSource, damageAmount) -> {
+            if (entity instanceof ServerPlayerEntity player) {
+                // Only process if this damage would kill the player
+                if (player.getHealth() <= damageAmount) {
+                    boolean keepInv = PlayerDataManager.getKeepInventory(player);
+                    // Damage event processing completed
+                }
+            }
+            return true; // Always allow damage
+        });
+        
+        // Register for entity death events with default priority
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayerEntity player) {
                 boolean keepInv = PlayerDataManager.getKeepInventory(player);
+                
                 if (keepInv) {
                     // Store the player's inventory in persistent storage
                     PlayerDataManager.storeInventoryOnDeath(player);

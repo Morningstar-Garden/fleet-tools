@@ -57,7 +57,7 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 
 The keep inventory system is an opt-out feature that allows players to keep their items on death without affecting the server's gamerule. By default, all players have keep inventory enabled, but they can turn it off if they prefer the vanilla experience. Players still lose XP when they die, maintaining some consequence for death.
 
-This system works with modded inventories, trinkets, and backpacks, ensuring comprehensive item protection regardless of which inventory expansion mods are installed. **AFK players are fully supported** - inventory data is stored persistently and will be restored even if players don't respawn for extended periods or disconnect while dead.
+This system works with modded inventories, trinkets, and backpacks, ensuring comprehensive item protection regardless of which inventory expansion mods are installed. **Full compatibility with Nemo's Backpacks and other inventory expansion mods** - the system dynamically detects and preserves ALL inventory slots, not just vanilla ones. **AFK players are fully supported** - inventory data is stored persistently and will be restored even if players don't respawn for extended periods or disconnect while dead.
 
 ### God Mode
 

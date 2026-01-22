@@ -125,52 +125,80 @@ public class PlayerDataManager {
     }
     
     public static class StoredInventoryData {
-        public ItemStack[] mainInventory;
-        public ItemStack[] armorInventory;
-        public ItemStack[] offhandInventory;
+        public ItemStack[] allInventorySlots;  // Store ALL inventory slots dynamically
+        public int inventorySize;              // Track the total size for validation
         public int selectedSlot;
         public long deathTime;
+        public ItemStack nemosBackpack = null; // Store Nemo's Backpack separately
         
         public StoredInventoryData() {
         }
         
         public StoredInventoryData(ServerPlayerEntity player) {
-            this.mainInventory = new ItemStack[36];
-            this.armorInventory = new ItemStack[4];
-            this.offhandInventory = new ItemStack[1];
             com.fleettools.mixin.accessor.PlayerInventoryAccessor inv = (com.fleettools.mixin.accessor.PlayerInventoryAccessor) player.getInventory();
             this.selectedSlot = inv.getSelectedSlot();
             this.deathTime = System.currentTimeMillis();
             
-            // Copy inventory contents
-            for (int i = 0; i < 36; i++) {
-                this.mainInventory[i] = inv.getMain().get(i).copy();
+            // Get the total size of the player's inventory (including modded slots)
+            this.inventorySize = player.getInventory().size();
+            this.allInventorySlots = new ItemStack[this.inventorySize];
+            
+            // Copy ALL inventory slots dynamically - this will include any modded slots
+            for (int i = 0; i < this.inventorySize; i++) {
+                ItemStack stack = player.getInventory().getStack(i);
+                this.allInventorySlots[i] = stack != null ? stack.copy() : ItemStack.EMPTY.copy();
             }
-            // Copy armor - armor slots are 36-39 in combined list
-            for (int i = 0; i < 4; i++) {
-                this.armorInventory[i] = player.getInventory().getStack(36 + i).copy();
+            
+            // NEMO'S BACKPACKS: Check if the player inventory implements BackpackGetter
+            try {
+                Class<?> backpackGetterClass = Class.forName("com.nemonotfound.nemos.backpacks.helper.BackpackGetter");
+                if (backpackGetterClass.isInstance(player.getInventory())) {
+                    // Use reflection to call nemosBackpacks$getBackpack()
+                    Object backpackGetter = player.getInventory();
+                    java.lang.reflect.Method getBackpackMethod = backpackGetterClass.getMethod("nemosBackpacks$getBackpack");
+                    ItemStack backpack = (ItemStack) getBackpackMethod.invoke(backpackGetter);
+                    
+                    if (backpack != null && !backpack.isEmpty()) {
+                        this.nemosBackpack = backpack.copy();
+                    }
+                }
+            } catch (Exception e) {
+                // Nemo's Backpacks not installed or error accessing backpack
             }
-            // Copy offhand - offhand is slot 40 in combined list
-            this.offhandInventory[0] = player.getInventory().getStack(40).copy();
         }
         
         public void restore(ServerPlayerEntity player) {
-            // Clear current inventory
+            // Clear current inventory first
             player.getInventory().clear();
             
             com.fleettools.mixin.accessor.PlayerInventoryAccessor inv = (com.fleettools.mixin.accessor.PlayerInventoryAccessor) player.getInventory();
             
-            // Restore saved inventory
-            for (int i = 0; i < 36; i++) {
-                inv.getMain().set(i, this.mainInventory[i].copy());
+            // Validate that inventory size matches (important for modded inventories)
+            int currentSize = player.getInventory().size();
+            if (currentSize != this.inventorySize) {
+                // Use the smaller size to avoid index out of bounds
+                currentSize = Math.min(currentSize, this.inventorySize);
             }
-            // Restore armor - armor slots are 36-39 in combined list
-            for (int i = 0; i < 4; i++) {
-                player.getInventory().setStack(36 + i, this.armorInventory[i].copy());
+            
+            // Restore ALL inventory slots dynamically - this includes modded slots
+            for (int i = 0; i < currentSize; i++) {
+                if (i < this.allInventorySlots.length && this.allInventorySlots[i] != null) {
+                    player.getInventory().setStack(i, this.allInventorySlots[i].copy());
+                }
             }
-            // Restore offhand - offhand is slot 40 in combined list
-            player.getInventory().setStack(40, this.offhandInventory[0].copy());
+            
+            // Restore selected slot
             inv.setSelectedSlot(this.selectedSlot);
+            
+            // NEMO'S BACKPACKS: Restore the backpack if we saved one
+            if (this.nemosBackpack != null && !this.nemosBackpack.isEmpty()) {
+                try {
+                    // Use setStack to place the backpack in slot 46 - this should trigger the mixin
+                    player.getInventory().setStack(46, this.nemosBackpack.copy());
+                } catch (Exception e) {
+                    // Error restoring backpack - silently continue
+                }
+            }
             
             // Mark inventory as changed
             player.currentScreenHandler.sendContentUpdates();

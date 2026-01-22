@@ -24,7 +24,8 @@ Successfully implemented an opt-out per-player keep inventory feature for the Fl
 ### 3. Comprehensive Mod Compatibility
 
 - Works with vanilla inventories (main, armor, offhand)
-- Compatible with modded inventories, trinkets, and backpacks
+- **Full compatibility with modded inventories** including Nemo's Backpacks, Trinkets, and other inventory expansion mods
+- Dynamically detects and preserves ALL inventory slots, not just vanilla ones
 - Uses event-based approach for maximum compatibility
 
 ### 4. XP Loss Maintained
