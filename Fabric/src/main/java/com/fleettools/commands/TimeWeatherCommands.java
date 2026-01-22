@@ -3,14 +3,14 @@ package com.fleettools.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
+import static net.minecraft.server.command.CommandManager.literal;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-
-import static net.minecraft.server.command.CommandManager.literal;
 
 public class TimeWeatherCommands {
     private static final String PERMISSION_TIME = "fleettools.time";
