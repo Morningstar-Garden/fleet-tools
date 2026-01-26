@@ -105,6 +105,64 @@ public class PlayerDataManager {
     private static GlobalData globalData;
     private static MinecraftServer serverInstance;
 
+    // Mod compatibility flags
+    private static Boolean battleCorePresent = null;
+    private static Boolean safeslotPresent = null;
+    
+    /**
+     * Check if BattleCore mod is present to avoid inventory conflicts during battles
+     */
+    private static boolean isBattleCorePresent() {
+        if (battleCorePresent == null) {
+            try {
+                Class.forName("com.battlecore.battle.Battle");
+                battleCorePresent = true;
+            } catch (ClassNotFoundException e) {
+                battleCorePresent = false;
+            }
+        }
+        return battleCorePresent;
+    }
+    
+    /**
+     * Check if SafeSlot mod is present
+     */
+    private static boolean isSafeslotPresent() {
+        if (safeslotPresent == null) {
+            try {
+                Class.forName("com.safeslot.SafeslotMod");
+                safeslotPresent = true;
+            } catch (ClassNotFoundException e) {
+                safeslotPresent = false;
+            }
+        }
+        return safeslotPresent;
+    }
+    
+    /**
+     * Check if player is in an active BattleCore battle
+     */
+    private static boolean isPlayerInBattle(ServerPlayerEntity player) {
+        if (!isBattleCorePresent()) {
+            return false;
+        }
+        try {
+            Class<?> battleClass = Class.forName("com.battlecore.battle.Battle");
+            Object battle = battleClass.getMethod("getInstance").invoke(null);
+            Object state = battleClass.getMethod("getState").invoke(battle);
+            
+            // Check if battle is active (not INACTIVE)
+            if (!state.toString().equals("INACTIVE")) {
+                Boolean inBattle = (Boolean) battleClass.getMethod("isPlayerInBattle", java.util.UUID.class)
+                    .invoke(battle, player.getUuid());
+                return inBattle != null && inBattle;
+            }
+        } catch (Exception e) {
+            // If we can't check, assume not in battle
+        }
+        return false;
+    }
+
     public static class PlayerData {
         public Vec3d homeLocation;
         public String homeWorld;
@@ -118,7 +176,7 @@ public class PlayerDataManager {
         public String tempBanReason = "";
         
         // Stored inventory data for keep inventory feature
-        public transient StoredInventoryData storedInventory = null;
+        public StoredInventoryData storedInventory = null;
 
         public PlayerData() {
         }
@@ -168,6 +226,11 @@ public class PlayerDataManager {
         }
         
         public void restore(ServerPlayerEntity player) {
+            // Don't restore if player is in BattleCore battle - let BattleCore handle it
+            if (isPlayerInBattle(player)) {
+                return;
+            }
+            
             // Clear current inventory first
             player.getInventory().clear();
             
@@ -183,7 +246,11 @@ public class PlayerDataManager {
             // Restore ALL inventory slots dynamically - this includes modded slots
             for (int i = 0; i < currentSize; i++) {
                 if (i < this.allInventorySlots.length && this.allInventorySlots[i] != null) {
-                    player.getInventory().setStack(i, this.allInventorySlots[i].copy());
+                    try {
+                        player.getInventory().setStack(i, this.allInventorySlots[i].copy());
+                    } catch (Exception e) {
+                        // Skip problematic slots to avoid crashes
+                    }
                 }
             }
             
@@ -515,10 +582,15 @@ public class PlayerDataManager {
     
     // Inventory Storage methods for Keep Inventory feature
     public static void storeInventoryOnDeath(ServerPlayerEntity player) {
+        // Don't interfere if player is in an active BattleCore battle
+        if (isPlayerInBattle(player)) {
+            return;
+        }
+        
         PlayerData data = getPlayerData(player);
         data.storedInventory = new StoredInventoryData(player);
-        // Don't save to disk immediately - inventory data is transient
-        // It will be saved when the player data is next saved
+        // Save to disk immediately for persistence
+        savePlayerData(player);
     }
     
     public static boolean hasStoredInventory(ServerPlayerEntity player) {
@@ -527,10 +599,16 @@ public class PlayerDataManager {
     }
     
     public static void restoreInventoryOnRespawn(ServerPlayerEntity player) {
+        // Don't interfere if player is in an active BattleCore battle
+        if (isPlayerInBattle(player)) {
+            return;
+        }
+        
         PlayerData data = getPlayerData(player);
         if (data.storedInventory != null) {
             data.storedInventory.restore(player);
             data.storedInventory = null; // Clear stored inventory after restoration
+            savePlayerData(player); // Save the cleared state
         }
     }
     

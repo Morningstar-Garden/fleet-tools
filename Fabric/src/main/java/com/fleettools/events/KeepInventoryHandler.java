@@ -89,9 +89,13 @@ public class KeepInventoryHandler {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
             if (PlayerDataManager.hasStoredInventory(player)) {
-                // Player joined while having a stored inventory (probably disconnected while dead)
-                PlayerDataManager.restoreInventoryOnRespawn(player);
-                
+                // Delay restoration to allow other mods to initialize first
+                server.execute(() -> {
+                    // Double-check after delay in case other mods have handled it
+                    if (PlayerDataManager.hasStoredInventory(player)) {
+                        PlayerDataManager.restoreInventoryOnRespawn(player);
+                    }
+                });
             }
         });
     }
