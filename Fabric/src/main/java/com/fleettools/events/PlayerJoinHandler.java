@@ -25,9 +25,7 @@ public class PlayerJoinHandler {
                     player.sendAbilitiesUpdate();
                 }
                 
-                // Safety check: Ensure any player joining is marked as off death screen
-                // This handles edge cases where players disconnect while on death screen
-                PlayerDataManager.markPlayerOffDeathScreen(player);
+
                 
             } catch (Exception e) {
                 System.err.println("[FleetTools] Error in player join handler: " + e.getMessage());
@@ -47,14 +45,7 @@ public class PlayerJoinHandler {
                         // Save their current location as their last known location
                         PlayerDataManager.setLastLocation(player, ((com.fleettools.mixin.accessor.EntityPosAccessor) player).getPos(), ((net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld()));
                         
-                        // Safety: If player disconnects while having stored inventory (death screen disconnect),
-                        // ensure the data is preserved but mark them as no longer on death screen
-                        if (PlayerDataManager.needsInventoryRestoration(player)) {
-                            System.out.println("[FleetTools] Player " + player.getGameProfile().name() + " disconnected with pending inventory restoration");
-                            // Don't clear the stored inventory, but mark them as off death screen
-                            // The inventory will be restored when they rejoin
-                            PlayerDataManager.markPlayerOffDeathScreen(player);
-                        }
+
                         
                     } catch (Exception e) {
                         // Silently handle errors to avoid interfering with other mods

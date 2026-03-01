@@ -7,6 +7,7 @@ import com.fleettools.commands.*;
 import com.fleettools.events.PlayerJoinHandler;
 import com.fleettools.events.TempBanHandler;
 import com.fleettools.events.KeepInventoryHandler;
+
 import com.fleettools.data.PlayerDataManager;
 
 public class FleettoolsMod implements ModInitializer {
@@ -34,7 +35,6 @@ public class FleettoolsMod implements ModInitializer {
             WarpCommand.register(dispatcher, registryAccess, environment);
             DaylightPauseCommand.register(dispatcher, registryAccess, environment);
             MsgCommand.register(dispatcher, registryAccess, environment);
-            KeepInvCommand.register(dispatcher, registryAccess, environment);
             // Moderation commands
             UnbanCommand.register(dispatcher, registryAccess, environment);
             MuteCommand.register(dispatcher, registryAccess, environment);
@@ -45,6 +45,8 @@ public class FleettoolsMod implements ModInitializer {
             TopCommand.register(dispatcher, registryAccess, environment);
             // Time and Weather commands
             TimeWeatherCommands.register(dispatcher, registryAccess, environment);
+            // Keep Inventory command
+            KeepInventoryCommand.register(dispatcher, registryAccess, environment);
         });
 
         // Register event handlers

@@ -1,182 +1,78 @@
 package com.fleettools.events;
 
-import com.fleettools.data.PlayerDataManager;
-
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.Vec3d;
+import com.fleettools.data.PlayerDataManager;
 
 public class KeepInventoryHandler {
     
     public static void register() {
-        // Try to hook into damage event BEFORE death to capture backpacks
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, damageSource, damageAmount) -> {
-            if (entity instanceof ServerPlayerEntity player) {
-                // Only process if this damage would kill the player
-                if (player.getHealth() <= damageAmount) {
-                    boolean keepInv = PlayerDataManager.getKeepInventory(player);
-                    // Damage event processing completed
+        ServerLivingEntityEvents.AFTER_DEATH.register(KeepInventoryHandler::onEntityDeath);
+    }
+    
+    private static void onEntityDeath(LivingEntity entity, DamageSource damageSource) {
+        // Only handle player deaths
+        if (!(entity instanceof ServerPlayerEntity player)) {
+            return;
+        }
+        
+        ServerWorld world = (ServerWorld) ((com.fleettools.mixin.accessor.EntityAccessor) entity).getWorld();
+        Vec3d deathPos = ((com.fleettools.mixin.accessor.EntityPosAccessor) entity).getPos();
+        
+        // ALWAYS drop experience for all players (regardless of keep inventory setting)
+        if (player.experienceLevel > 0 || player.totalExperience > 0) {
+            // Calculate total XP and drop as experience orbs
+            int totalXp = player.totalExperience;
+            if (totalXp > 0) {
+                // Drop experience orbs at death location
+                while (totalXp > 0) {
+                    int orbValue = Math.min(totalXp, 1000); // Limit orb size
+                    net.minecraft.entity.ExperienceOrbEntity.spawn(world, deathPos, orbValue);
+                    totalXp -= orbValue;
                 }
             }
-            return true; // Always allow damage
-        });
+            // Clear player's experience
+            player.experienceLevel = 0;
+            player.experienceProgress = 0.0f;
+            player.totalExperience = 0;
+        }
         
-        // Register for entity death events with default priority
-        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
-            if (entity instanceof ServerPlayerEntity player) {
-                boolean keepInv = PlayerDataManager.getKeepInventory(player);
-                
-                if (keepInv) {
-                    try {
-                        // Store the player's inventory in persistent storage with damage source info
-                        String deathCause = damageSource != null ? damageSource.getName() : "unknown";
-                        PlayerDataManager.storeInventoryOnDeath(player, deathCause);
-                        
-                        System.out.println("[FleetTools] Player " + player.getGameProfile().name() + " died with keep inventory enabled (cause: " + deathCause + ")");
-                        
-                        // Temporarily enable keep inventory gamerule for this death
-                        try {
-                            net.minecraft.server.world.ServerWorld world = (net.minecraft.server.world.ServerWorld)((com.fleettools.mixin.accessor.EntityAccessor)player).getWorld();
-                            var gameRules = world.getGameRules();
-                            var ruleClass = gameRules.getClass();
-                            try {
-                                var field = ruleClass.getField("KEEP_INVENTORY");
-                                Object keepInvKey = field.get(null);
-                                // Use reflection to call getBoolean
-                                var getBooleanMethod = ruleClass.getMethod("getBoolean", keepInvKey.getClass().getSuperclass());
-                                boolean wasEnabled = (Boolean) getBooleanMethod.invoke(gameRules, keepInvKey);
-                                if (!wasEnabled) {
-                                    // Get the rule object
-                                    var getMethod = ruleClass.getMethod("get", keepInvKey.getClass().getSuperclass());
-                                    Object rule = getMethod.invoke(gameRules, keepInvKey);
-                                    // Set the rule to true
-                                    var setMethod = rule.getClass().getMethod("set", boolean.class, net.minecraft.server.MinecraftServer.class);
-                                    setMethod.invoke(rule, true, ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer());
-                                    
-                                    // Schedule to restore the gamerule after a short delay
-                                    net.minecraft.server.MinecraftServer server = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)player).getServer();
-                                    if (server != null) {
-                                        server.execute(() -> {
-                                            try {
-                                                Thread.sleep(50);
-                                                Object ruleAgain = getMethod.invoke(gameRules, keepInvKey);
-                                                setMethod.invoke(ruleAgain, false, server);
-                                            } catch (Exception e) {
-                                                Thread.currentThread().interrupt();
-                                            }
-                                        });
-                                    }
-                                }
-                            } catch (NoSuchFieldException e) {
-                                // KEEP_INVENTORY field not found, just store inventory without gamerule manipulation
-                                System.err.println("[FleetTools] Could not find KEEP_INVENTORY game rule field.");
-                            }
-                        } catch (Exception e) {
-                            // If gamerule manipulation fails, inventory will still be restored on respawn
-                            System.err.println("[FleetTools] Failed to manipulate keep inventory gamerule: " + e.getMessage());
-                        }
-                    } catch (Exception e) {
-                        System.err.println("[FleetTools] Critical error during death inventory storage: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
-            }
-            return true; // Always allow death to proceed
-        });
+        // Check if this player has opted out of keep inventory
+        boolean keepInventoryDisabled = PlayerDataManager.isKeepInventoryDisabled(player);
         
-        // Handle respawn to ensure inventory is maintained
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+        if (!keepInventoryDisabled) {
+            // Player wants to keep inventory - let vanilla handle it (but XP was already dropped above)
+            return;
+        }
+        
+        // Player has opted out of keep inventory - we need to drop their items
+        // Since the gamerule keepInventory is true, vanilla won't drop items, so we need to do it manually
+        
+        // Drop all items from player inventory including modded inventory slots (like Nemo's Backpacks)
+        // We iterate through an extended range to catch any modded inventory extensions
+        for (int i = 0; i < 200; i++) { // Extended range to catch backpack slots
             try {
-                if (!alive && PlayerDataManager.needsInventoryRestoration(newPlayer)) {
-                    System.out.println("[FleetTools] Player " + newPlayer.getGameProfile().name() + " respawned, attempting inventory restoration");
+                ItemStack stack = player.getInventory().getStack(i);
+                if (!stack.isEmpty()) {
+                    // Create a copy and clear the slot
+                    ItemStack dropStack = stack.copy();
+                    player.getInventory().setStack(i, ItemStack.EMPTY);
                     
-                    // Mark player as off death screen
-                    PlayerDataManager.markPlayerOffDeathScreen(newPlayer);
-                    
-                    // Validate stored inventory before attempting restore
-                    PlayerDataManager.validateStoredInventory(newPlayer);
-                    
-                    // Attempt to restore inventory with a slight delay to ensure everything is loaded
-                    net.minecraft.server.MinecraftServer server = ((com.fleettools.mixin.accessor.ServerPlayerEntityAccessor)newPlayer).getServer();
-                    if (server != null) {
-                        server.execute(() -> {
-                            try {
-                                Thread.sleep(100); // Small delay to ensure respawn is complete
-                                PlayerDataManager.restoreInventoryOnRespawn(newPlayer);
-                            } catch (Exception e) {
-                                System.err.println("[FleetTools] Error during delayed inventory restoration: " + e.getMessage());
-                                Thread.currentThread().interrupt();
-                            }
-                        });
-                    } else {
-                        // Fallback to immediate restoration if server is null
-                        PlayerDataManager.restoreInventoryOnRespawn(newPlayer);
-                    }
+                    // Drop the item at death location
+                    player.dropStack(world, dropStack, 0.0f);
                 }
+            } catch (IndexOutOfBoundsException e) {
+                // We've reached the end of available inventory slots
+                break;
             } catch (Exception e) {
-                System.err.println("[FleetTools] Error in respawn event handler: " + e.getMessage());
-                e.printStackTrace();
+                // Continue if there's any other error accessing a slot
+                continue;
             }
-        });
-        
-        // Handle player joining to restore inventory if they had one stored when they disconnected
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            ServerPlayerEntity player = handler.getPlayer();
-            
-            try {
-                // Check if player needs inventory restoration (disconnected on death screen)
-                if (PlayerDataManager.needsInventoryRestoration(player)) {
-                    System.out.println("[FleetTools] Player " + player.getGameProfile().name() + " joined with pending inventory restoration");
-                    
-                    // Validate the stored inventory data
-                    PlayerDataManager.validateStoredInventory(player);
-                    
-                    // Multiple restoration attempts with increasing delays
-                    server.execute(() -> {
-                        try {
-                            // First attempt - immediate
-                            if (PlayerDataManager.needsInventoryRestoration(player)) {
-                                System.out.println("[FleetTools] Attempting immediate inventory restoration for " + player.getGameProfile().name());
-                                PlayerDataManager.restoreInventoryOnRespawn(player);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("[FleetTools] First restoration attempt failed: " + e.getMessage());
-                        }
-                    });
-                    
-                    // Second attempt with delay if first failed
-                    server.execute(() -> {
-                        try {
-                            Thread.sleep(1000); // 1 second delay
-                            if (PlayerDataManager.needsInventoryRestoration(player)) {
-                                System.out.println("[FleetTools] Attempting delayed inventory restoration for " + player.getGameProfile().name());
-                                PlayerDataManager.restoreInventoryOnRespawn(player);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("[FleetTools] Delayed restoration attempt failed: " + e.getMessage());
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-                    
-                    // Emergency restoration as last resort
-                    server.execute(() -> {
-                        try {
-                            Thread.sleep(5000); // 5 second delay
-                            if (PlayerDataManager.needsInventoryRestoration(player)) {
-                                System.out.println("[FleetTools] Performing emergency inventory restoration for " + player.getGameProfile().name());
-                                PlayerDataManager.emergencyRestoreInventory(player);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("[FleetTools] Emergency restoration failed: " + e.getMessage());
-                            Thread.currentThread().interrupt();
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                System.err.println("[FleetTools] Error in join event handler for " + player.getGameProfile().name() + ": " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
+        }
     }
 }

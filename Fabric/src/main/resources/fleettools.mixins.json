@@ -11,7 +11,7 @@
     "LivingEntityDeathMixin",
     "accessor.EntityAccessor",
     "accessor.ServerPlayerEntityAccessor",
-    "accessor.PlayerInventoryAccessor",
+
     "accessor.EntityPosAccessor"
   ],
   "client": [],

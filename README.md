@@ -19,7 +19,7 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 
 ### Back System
 
-- **`/back`** - Return to your previous location
+- **`/back`** - Return to your previous location (works with vanilla `/tp` commands)
 - Permission: `fleettools.back` (default: operators only)
 
 ### Teleportation
@@ -48,16 +48,11 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 - **`/gmsp [player]`** - Switch to Spectator mode
 - Permission: `fleettools.gamemode`, `fleettools.gamemode.others` (default: operators only)
 
-### Keep Inventory System
+### Keep Inventory
 
-- **`/keepinv`** - Toggle your personal keep inventory setting (enabled by default)
-- **`/keepinv status`** - Check your current keep inventory status
-- **`/keepinv <player>`** - Toggle keep inventory for another player (admin only)
-- Permission: `fleettools.keepinv`, `fleettools.keepinv.others` (default: all players for self, operators for others)
-
-The keep inventory system is an opt-out feature that allows players to keep their items on death without affecting the server's gamerule. By default, all players have keep inventory enabled, but they can turn it off if they prefer the vanilla experience. Players still lose XP when they die, maintaining some consequence for death.
-
-This system works with modded inventories, trinkets, and backpacks, ensuring comprehensive item protection regardless of which inventory expansion mods are installed. **Full compatibility with Nemo's Backpacks and other inventory expansion mods** - the system dynamically detects and preserves ALL inventory slots, not just vanilla ones. **AFK players are fully supported** - inventory data is stored persistently and will be restored even if players don't respawn for extended periods or disconnect while dead.
+- **`/keepinv`** - Toggle keep inventory for yourself (opt-out system)
+- Permission: `fleettools.keepinv` (default: all players)
+- Note: Server gamerule `keepInventory` should be set to `true`. This command allows individual players to opt out of keeping their inventory on death.
 
 ### God Mode
 
@@ -157,6 +152,7 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/sun`                      | `fleettools.weather`         | 2 (operators) |
 | `/rain`                     | `fleettools.weather`         | 2 (operators) |
 | `/thunderstorm`             | `fleettools.weather`         | 2 (operators) |
+| `/keepinv`                  | `fleettools.keepinv`         | 0 (all users) |
 
 ## Data Storage
 
@@ -193,13 +189,17 @@ The mod automatically creates necessary data files and folders on first run. No 
 /delhome           # Delete your home
 /spawn             # Teleport to spawn
 /setspawn          # Set spawn (admin only)
-/back              # Return to previous location
+/back              # Return to previous location (works with vanilla /tp too!)
 
 # Advanced Teleportation
 /tpo Steve         # Teleport to Steve (online or offline)
 /tpoffline Alex    # Alternative syntax for offline teleportation
 /top               # Teleport to highest block above you
 /top Steve         # Teleport Steve to highest block above him
+
+# Example: Using /back with vanilla /tp
+/tp @s 100 64 200  # Vanilla teleport to coordinates
+/back              # Returns to where you were before the /tp command
 
 # Player Management
 /heal              # Heal yourself
@@ -242,4 +242,7 @@ The mod automatically creates necessary data files and folders on first run. No 
 /sun               # Set weather to clear/sunny
 /rain              # Set weather to rain
 /thunderstorm      # Set weather to thunderstorm
+
+# Keep Inventory Management
+/keepinv           # Toggle keep inventory for yourself
 ```
