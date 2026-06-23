@@ -128,6 +128,14 @@ public class PlayerDataManager {
         // Stored inventory data for keep inventory feature
         public transient StoredInventoryData storedInventory = null;
 
+        // Death location captured at the moment of death, applied as the /back
+        // point after respawn (transient: only needs to survive death -> respawn).
+        public transient Vec3 deathLocation;
+        public transient String deathWorld;
+        public transient float deathYaw;
+        public transient float deathPitch;
+        public transient boolean hasDeathLocation;
+
         public PlayerData() {
         }
     }
@@ -382,6 +390,34 @@ public class PlayerDataManager {
 
     public static float getLastPitch(ServerPlayer player) {
         return getPlayerData(player).lastPitch;
+    }
+
+    // Capture where the player died (must be called while they are still at the
+    // death location, i.e. from the death event, not from respawn).
+    public static void recordDeathLocation(ServerPlayer player) {
+        PlayerData data = getPlayerData(player);
+        data.deathLocation = player.position();
+        data.deathWorld = player.level().dimension().identifier().toString();
+        data.deathYaw = player.getYRot();
+        data.deathPitch = player.getXRot();
+        data.hasDeathLocation = true;
+    }
+
+    // Promote a previously recorded death location to the /back point. Returns
+    // true if a death location was pending.
+    public static boolean consumeDeathLocationAsBack(ServerPlayer player) {
+        PlayerData data = getPlayerData(player);
+        if (!data.hasDeathLocation || data.deathLocation == null) {
+            return false;
+        }
+        data.lastLocation = data.deathLocation;
+        data.lastWorld = data.deathWorld;
+        data.lastYaw = data.deathYaw;
+        data.lastPitch = data.deathPitch;
+        data.hasDeathLocation = false;
+        data.deathLocation = null;
+        savePlayerData(player);
+        return true;
     }
 
     // God mode methods
