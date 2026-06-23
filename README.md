@@ -26,7 +26,8 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 
 - **`/tpo <player>`** or **`/tpoffline <player>`** - Teleport to any player's location (online or offline)
 - **`/top <player>`** - Teleport to the highest block above current position
-- Permission: `fleettools.tpo`, `fleettools.top`, `fleettools.top.others` (default: operators only)
+- **`/tpall [player]`** - Teleport all online players to you (or to the given player)
+- Permission: `fleettools.tpo`, `fleettools.top`, `fleettools.top.others`, `fleettools.tpall` (default: operators only)
 
 ### Health & Hunger
 
@@ -66,6 +67,7 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 
 ### Warps System
 
+- **`/warp`** - List all available warps
 - **`/warp <name>`** - Teleport to a named warp location
 - **`/setwarp <name>`** - Set a warp at your current location
 - **`/delwarp <name>`** - Delete a named warp
@@ -73,17 +75,28 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 
 ### Moderation Tools
 
+- **`/ban <player> [reason]`** - Permanently ban a player (online or offline) and kick them if online
+- **`/ban-ip <ip|player> [reason]`** - Ban an IP address (or an online player's IP) and kick anyone connected from it
+- **`/banlist [players|ips]`** - List banned players and/or IP addresses
 - **`/unban <player>`** - Remove player from ban list (substitute for /pardon)
 - **`/mute <player>`** - Prevent player from sending chat messages
 - **`/unmute <player>`** - Allow muted player to send chat messages again
 - **`/tempban <player> <time> [reason]`** - Temporarily ban player with automatic expiry
   - Time formats: `30s`, `5m`, `2h`, `1d`, `7d`, etc.
-- Permission: `fleettools.unban`, `fleettools.mute`, `fleettools.unmute`, `fleettools.tempban` (default: level 3)
+- **`/kick <player> [reason]`** - Disconnect an online player, with an optional reason shown to them
+- Permission: `fleettools.ban`, `fleettools.banip`, `fleettools.banlist`, `fleettools.unban`, `fleettools.mute`, `fleettools.unmute`, `fleettools.tempban`, `fleettools.kick` (default: level 3)
+
+### Kill
+
+- **`/kill`** - Kill yourself
+- **`/kill <player>`** - Kill another online player
+- Permission: `fleettools.kill`, `fleettools.kill.others` (default: operators only)
 
 ### Communication
 
-- **`/msg <player> <message>`** - Send private message to player with actionbar display
-- Permission: `fleettools.msg` (default: operators only)
+- **`/msg <player> <message>`** - Send private message to player with actionbar display (also `/tell`, `/w`)
+- **`/broadcast <message>`** - Send a server-wide announcement to all players (alias: `/bc`)
+- Permission: `fleettools.msg`, `fleettools.broadcast` (default: operators only)
 
 ### Utility Commands
 
@@ -102,11 +115,11 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 
 ## Installation
 
-1. Make sure you have Fabric Loader installed
+1. Make sure you are running **Minecraft 26.2** with **Java 25+** and **Fabric Loader 0.19.3+**
 2. Download the latest release from the releases page
 3. Place the mod file in your `mods` folder
 4. Install the required dependencies:
-   - Fabric API
+   - Fabric API (0.153.0+26.2 or newer)
    - Fabric Permissions API
 5. Restart your server
 
@@ -132,6 +145,7 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/tpo <player>`             | `fleettools.tpo`             | 2 (operators) |
 | `/top`                      | `fleettools.top`             | 2 (operators) |
 | `/top <player>`             | `fleettools.top.others`      | 2 (operators) |
+| `/tpall`                    | `fleettools.tpall`           | 2 (operators) |
 | `/heal`                     | `fleettools.heal`            | 2 (operators) |
 | `/heal <player>`            | `fleettools.heal.others`     | 2 (operators) |
 | `/feed`                     | `fleettools.feed`            | 2 (operators) |
@@ -149,7 +163,14 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/mute`                     | `fleettools.mute`            | 3 (admins)    |
 | `/unmute`                   | `fleettools.unmute`          | 3 (admins)    |
 | `/tempban`                  | `fleettools.tempban`         | 3 (admins)    |
-| `/msg`                      | `fleettools.msg`             | 2 (operators) |
+| `/ban`                      | `fleettools.ban`             | 3 (admins)    |
+| `/ban-ip`                   | `fleettools.banip`           | 3 (admins)    |
+| `/banlist`                  | `fleettools.banlist`         | 3 (admins)    |
+| `/kick`                     | `fleettools.kick`            | 3 (admins)    |
+| `/kill`                     | `fleettools.kill`            | 2 (operators) |
+| `/kill <player>`            | `fleettools.kill.others`     | 2 (operators) |
+| `/msg` `/tell` `/w`         | `fleettools.msg`             | 2 (operators) |
+| `/broadcast` `/bc`          | `fleettools.broadcast`       | 3 (admins)    |
 | `/coords`                   | `fleettools.coords`          | 2 (operators) |
 | `/daylight-pause`           | `fleettools.daylight`        | 2 (operators) |
 | `/day`                      | `fleettools.time`            | 2 (operators) |
@@ -174,9 +195,10 @@ Fleet Tools stores player data in JSON files in the `fleettools` folder within y
 
 ## Compatibility
 
-- **Minecraft Version**: 1.20.1
-- **Fabric Loader**: 0.12.5+
-- **Java**: 17+
+- **Minecraft Version**: 26.2
+- **Fabric Loader**: 0.19.3+
+- **Fabric API**: 0.153.0+26.2 or newer
+- **Java**: 25+
 
 ## Configuration
 

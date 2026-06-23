@@ -11,26 +11,26 @@ import java.util.UUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 
 public class PlayerDataManager {
     // --- Warp System ---
     public static class WarpData {
-        public Vec3d location;
+        public Vec3 location;
         public String world;
 
         public WarpData() {
         }
 
-        public WarpData(Vec3d location, String world) {
+        public WarpData(Vec3 location, String world) {
             this.location = location;
             this.world = world;
         }
@@ -43,7 +43,7 @@ public class PlayerDataManager {
 
     public static void loadWarps(MinecraftServer server) {
         try {
-            Path warpsFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(WARPS_FILE);
+            Path warpsFile = server.getServerDirectory().resolve(DATA_FOLDER).resolve(WARPS_FILE);
             if (Files.exists(warpsFile)) {
                 String json = Files.readString(warpsFile);
                 Map<String, WarpData> loaded = GSON.fromJson(json, WARP_MAP_TYPE);
@@ -57,7 +57,7 @@ public class PlayerDataManager {
 
     public static void saveWarps(MinecraftServer server) {
         try {
-            Path warpsFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(WARPS_FILE);
+            Path warpsFile = server.getServerDirectory().resolve(DATA_FOLDER).resolve(WARPS_FILE);
             String json = GSON.toJson(warps, WARP_MAP_TYPE);
             Files.writeString(warpsFile, json);
         } catch (IOException e) {
@@ -69,8 +69,8 @@ public class PlayerDataManager {
         return warps;
     }
 
-    public static void setWarp(String name, Vec3d location, ServerWorld world) {
-        warps.put(name, new WarpData(location, world.getRegistryKey().getValue().toString()));
+    public static void setWarp(String name, Vec3 location, ServerLevel world) {
+        warps.put(name, new WarpData(location, world.dimension().identifier().toString()));
         saveWarps(world.getServer());
     }
 
@@ -85,7 +85,7 @@ public class PlayerDataManager {
     }
 
     // Removes the player's home and returns true if a home was removed
-    public static boolean removeHome(ServerPlayerEntity player) {
+    public static boolean removeHome(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         if (data.homeLocation != null) {
             data.homeLocation = null;
@@ -106,9 +106,9 @@ public class PlayerDataManager {
     private static MinecraftServer serverInstance;
 
     public static class PlayerData {
-        public Vec3d homeLocation;
+        public Vec3 homeLocation;
         public String homeWorld;
-        public Vec3d lastLocation;
+        public Vec3 lastLocation;
         public String lastWorld;
         public boolean godMode = false;
         public boolean flyEnabled = false;
@@ -125,55 +125,47 @@ public class PlayerDataManager {
     }
     
     public static class StoredInventoryData {
-        public ItemStack[] mainInventory;
-        public ItemStack[] armorInventory;
-        public ItemStack[] offhandInventory;
+        // 1.21.x flattened the player inventory into a single indexed container
+        // (getContainerSize / getItem / setItem), so we snapshot the whole thing
+        // generically instead of tracking main/armor/offhand separately.
+        public transient ItemStack[] contents;
         public int selectedSlot;
         public long deathTime;
-        
+
         public StoredInventoryData() {
         }
-        
-        public StoredInventoryData(ServerPlayerEntity player) {
-            this.mainInventory = new ItemStack[36];
-            this.armorInventory = new ItemStack[4];
-            this.offhandInventory = new ItemStack[1];
-            this.selectedSlot = player.getInventory().selectedSlot;
+
+        public StoredInventoryData(ServerPlayer player) {
+            var inventory = player.getInventory();
+            int size = inventory.getContainerSize();
+            this.contents = new ItemStack[size];
+            for (int i = 0; i < size; i++) {
+                this.contents[i] = inventory.getItem(i).copy();
+            }
+            this.selectedSlot = inventory.getSelectedSlot();
             this.deathTime = System.currentTimeMillis();
-            
-            // Copy inventory contents
-            for (int i = 0; i < 36; i++) {
-                this.mainInventory[i] = player.getInventory().main.get(i).copy();
-            }
-            for (int i = 0; i < 4; i++) {
-                this.armorInventory[i] = player.getInventory().armor.get(i).copy();
-            }
-            this.offhandInventory[0] = player.getInventory().offHand.get(0).copy();
         }
-        
-        public void restore(ServerPlayerEntity player) {
-            // Clear current inventory
-            player.getInventory().clear();
-            
-            // Restore saved inventory
-            for (int i = 0; i < 36; i++) {
-                player.getInventory().main.set(i, this.mainInventory[i].copy());
+
+        public void restore(ServerPlayer player) {
+            var inventory = player.getInventory();
+            inventory.clearContent();
+            if (this.contents != null) {
+                int size = Math.min(this.contents.length, inventory.getContainerSize());
+                for (int i = 0; i < size; i++) {
+                    inventory.setItem(i, this.contents[i].copy());
+                }
             }
-            for (int i = 0; i < 4; i++) {
-                player.getInventory().armor.set(i, this.armorInventory[i].copy());
-            }
-            player.getInventory().offHand.set(0, this.offhandInventory[0].copy());
-            player.getInventory().selectedSlot = this.selectedSlot;
-            
-            // Mark inventory as changed
-            player.currentScreenHandler.sendContentUpdates();
-            player.playerScreenHandler.onContentChanged(player.getInventory());
-            player.sendAbilitiesUpdate();
+            inventory.setSelectedSlot(this.selectedSlot);
+
+            // Push the changes to the client.
+            player.containerMenu.broadcastChanges();
+            player.inventoryMenu.slotsChanged(inventory);
+            player.onUpdateAbilities();
         }
     }
 
     public static class GlobalData {
-        public Vec3d spawnLocation;
+        public Vec3 spawnLocation;
         public String spawnWorld;
 
         public GlobalData() {
@@ -183,7 +175,7 @@ public class PlayerDataManager {
     public static void init(MinecraftServer server) {
         serverInstance = server; // Store server instance for later use
         try {
-            Path dataDir = server.getRunDirectory().toPath().resolve(DATA_FOLDER);
+            Path dataDir = server.getServerDirectory().resolve(DATA_FOLDER);
             Path playersDir = dataDir.resolve(PLAYERS_FOLDER);
 
             if (!Files.exists(dataDir)) {
@@ -203,7 +195,7 @@ public class PlayerDataManager {
 
     private static void loadGlobalData(MinecraftServer server) {
         try {
-            Path globalFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
+            Path globalFile = server.getServerDirectory().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
             if (Files.exists(globalFile)) {
                 String json = Files.readString(globalFile);
                 globalData = GSON.fromJson(json, GlobalData.class);
@@ -218,7 +210,7 @@ public class PlayerDataManager {
 
     private static void saveGlobalData(MinecraftServer server) {
         try {
-            Path globalFile = server.getRunDirectory().toPath().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
+            Path globalFile = server.getServerDirectory().resolve(DATA_FOLDER).resolve(GLOBAL_DATA_FILE);
             String json = GSON.toJson(globalData);
             Files.writeString(globalFile, json);
         } catch (IOException e) {
@@ -226,8 +218,8 @@ public class PlayerDataManager {
         }
     }
 
-    public static PlayerData getPlayerData(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    public static PlayerData getPlayerData(ServerPlayer player) {
+        UUID uuid = player.getUUID();
 
         if (playerDataCache.containsKey(uuid)) {
             return playerDataCache.get(uuid);
@@ -235,7 +227,7 @@ public class PlayerDataManager {
 
         // Load from file
         try {
-            Path playerFile = player.getServer().getRunDirectory().toPath()
+            Path playerFile = player.level().getServer().getServerDirectory()
                     .resolve(DATA_FOLDER)
                     .resolve(PLAYERS_FOLDER)
                     .resolve(uuid.toString() + ".json");
@@ -257,15 +249,15 @@ public class PlayerDataManager {
         return data;
     }
 
-    public static void savePlayerData(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    public static void savePlayerData(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         PlayerData data = playerDataCache.get(uuid);
 
         if (data == null)
             return;
 
         try {
-            Path playerFile = player.getServer().getRunDirectory().toPath()
+            Path playerFile = player.level().getServer().getServerDirectory()
                     .resolve(DATA_FOLDER)
                     .resolve(PLAYERS_FOLDER)
                     .resolve(uuid.toString() + ".json");
@@ -279,111 +271,111 @@ public class PlayerDataManager {
     }
 
     // Home methods
-    public static Vec3d getHome(ServerPlayerEntity player) {
+    public static Vec3 getHome(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.homeLocation;
     }
 
-    public static ServerWorld getHomeWorld(ServerPlayerEntity player) {
+    public static ServerLevel getHomeWorld(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         if (data.homeWorld == null)
             return null;
 
-        Identifier worldId = new Identifier(data.homeWorld);
-        RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-        return player.getServer().getWorld(worldKey);
+        Identifier worldId = Identifier.parse(data.homeWorld);
+        ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, worldId);
+        return player.level().getServer().getLevel(worldKey);
     }
 
-    public static void setHome(ServerPlayerEntity player, Vec3d location, ServerWorld world) {
+    public static void setHome(ServerPlayer player, Vec3 location, ServerLevel world) {
         PlayerData data = getPlayerData(player);
         data.homeLocation = location;
-        data.homeWorld = world.getRegistryKey().getValue().toString();
+        data.homeWorld = world.dimension().identifier().toString();
         savePlayerData(player);
     }
 
     // Spawn methods
-    public static Vec3d getSpawn() {
+    public static Vec3 getSpawn() {
         return globalData.spawnLocation;
     }
 
-    public static ServerWorld getSpawnWorld(MinecraftServer server) {
+    public static ServerLevel getSpawnWorld(MinecraftServer server) {
         if (globalData.spawnWorld == null) {
-            return server.getOverworld();
+            return server.overworld();
         }
 
-        Identifier worldId = new Identifier(globalData.spawnWorld);
-        RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-        ServerWorld world = server.getWorld(worldKey);
-        return world != null ? world : server.getOverworld();
+        Identifier worldId = Identifier.parse(globalData.spawnWorld);
+        ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, worldId);
+        ServerLevel world = server.getLevel(worldKey);
+        return world != null ? world : server.overworld();
     }
 
-    public static void setSpawn(Vec3d location, ServerWorld world) {
+    public static void setSpawn(Vec3 location, ServerLevel world) {
         globalData.spawnLocation = location;
-        globalData.spawnWorld = world.getRegistryKey().getValue().toString();
+        globalData.spawnWorld = world.dimension().identifier().toString();
         saveGlobalData(world.getServer());
     }
 
     // Back/last location methods
-    public static Vec3d getLastLocation(ServerPlayerEntity player) {
+    public static Vec3 getLastLocation(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.lastLocation;
     }
 
-    public static ServerWorld getLastWorld(ServerPlayerEntity player) {
+    public static ServerLevel getLastWorld(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         if (data.lastWorld == null)
             return null;
 
-        Identifier worldId = new Identifier(data.lastWorld);
-        RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-        return player.getServer().getWorld(worldKey);
+        Identifier worldId = Identifier.parse(data.lastWorld);
+        ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, worldId);
+        return player.level().getServer().getLevel(worldKey);
     }
 
-    public static void setLastLocation(ServerPlayerEntity player, Vec3d location, ServerWorld world) {
+    public static void setLastLocation(ServerPlayer player, Vec3 location, ServerLevel world) {
         PlayerData data = getPlayerData(player);
         data.lastLocation = location;
-        data.lastWorld = world.getRegistryKey().getValue().toString();
+        data.lastWorld = world.dimension().identifier().toString();
         savePlayerData(player);
     }
 
     // God mode methods
-    public static boolean getGodMode(ServerPlayerEntity player) {
+    public static boolean getGodMode(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.godMode;
     }
 
-    public static void setGodMode(ServerPlayerEntity player, boolean enabled) {
+    public static void setGodMode(ServerPlayer player, boolean enabled) {
         PlayerData data = getPlayerData(player);
         data.godMode = enabled;
         savePlayerData(player);
     }
 
     // Fly methods
-    public static boolean getFlyEnabled(ServerPlayerEntity player) {
+    public static boolean getFlyEnabled(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.flyEnabled;
     }
 
-    public static void setFlyEnabled(ServerPlayerEntity player, boolean enabled) {
+    public static void setFlyEnabled(ServerPlayer player, boolean enabled) {
         PlayerData data = getPlayerData(player);
         data.flyEnabled = enabled;
         savePlayerData(player);
     }
 
     // Mute methods
-    public static boolean isMuted(ServerPlayerEntity player) {
+    public static boolean isMuted(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.muted;
     }
 
-    public static void setMuted(ServerPlayerEntity player, boolean muted) {
+    public static void setMuted(ServerPlayer player, boolean muted) {
         PlayerData data = getPlayerData(player);
         data.muted = muted;
         savePlayerData(player);
     }
 
     // Temporary ban methods
-    public static boolean isTempBanned(ServerPlayerEntity player) {
+    public static boolean isTempBanned(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         if (data.tempBanUntil <= 0)
             return false;
@@ -400,24 +392,24 @@ public class PlayerDataManager {
         return true;
     }
 
-    public static void setTempBan(ServerPlayerEntity player, long banUntil, String reason) {
+    public static void setTempBan(ServerPlayer player, long banUntil, String reason) {
         PlayerData data = getPlayerData(player);
         data.tempBanUntil = banUntil;
         data.tempBanReason = reason;
         savePlayerData(player);
     }
 
-    public static String getTempBanReason(ServerPlayerEntity player) {
+    public static String getTempBanReason(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.tempBanReason != null ? data.tempBanReason : "";
     }
 
-    public static long getTempBanExpiry(ServerPlayerEntity player) {
+    public static long getTempBanExpiry(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.tempBanUntil;
     }
 
-    public static void clearTempBan(ServerPlayerEntity player) {
+    public static void clearTempBan(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         data.tempBanUntil = 0;
         data.tempBanReason = "";
@@ -425,18 +417,18 @@ public class PlayerDataManager {
     }
 
     // Keep Inventory methods
-    public static boolean getKeepInventory(ServerPlayerEntity player) {
+    public static boolean getKeepInventory(ServerPlayer player) {
         return getPlayerData(player).keepInventory;
     }
 
-    public static void setKeepInventory(ServerPlayerEntity player, boolean enabled) {
+    public static void setKeepInventory(ServerPlayer player, boolean enabled) {
         PlayerData data = getPlayerData(player);
         data.keepInventory = enabled;
         savePlayerData(player);
     }
 
     // UUID-based methods for offline players
-    public static Vec3d getLastLocationByUUID(java.util.UUID uuid) {
+    public static Vec3 getLastLocationByUUID(java.util.UUID uuid) {
         try {
             Path playerFile = getPlayerDataPath(uuid);
             if (Files.exists(playerFile)) {
@@ -450,16 +442,16 @@ public class PlayerDataManager {
         return null;
     }
 
-    public static ServerWorld getLastWorldByUUID(java.util.UUID uuid, MinecraftServer server) {
+    public static ServerLevel getLastWorldByUUID(java.util.UUID uuid, MinecraftServer server) {
         try {
             Path playerFile = getPlayerDataPath(uuid);
             if (Files.exists(playerFile)) {
                 String json = Files.readString(playerFile);
                 PlayerData data = GSON.fromJson(json, PlayerData.class);
                 if (data != null && data.lastWorld != null) {
-                    Identifier worldId = new Identifier(data.lastWorld);
-                    RegistryKey<World> worldKey = RegistryKey.of(RegistryKeys.WORLD, worldId);
-                    return server.getWorld(worldKey);
+                    Identifier worldId = Identifier.parse(data.lastWorld);
+                    ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, worldId);
+                    return server.getLevel(worldKey);
                 }
             }
         } catch (IOException e) {
@@ -472,26 +464,26 @@ public class PlayerDataManager {
         if (serverInstance == null) {
             return null;
         }
-        return serverInstance.getRunDirectory().toPath()
+        return serverInstance.getServerDirectory()
                 .resolve(DATA_FOLDER)
                 .resolve(PLAYERS_FOLDER)
                 .resolve(uuid.toString() + ".json");
     }
     
     // Inventory Storage methods for Keep Inventory feature
-    public static void storeInventoryOnDeath(ServerPlayerEntity player) {
+    public static void storeInventoryOnDeath(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         data.storedInventory = new StoredInventoryData(player);
         // Don't save to disk immediately - inventory data is transient
         // It will be saved when the player data is next saved
     }
     
-    public static boolean hasStoredInventory(ServerPlayerEntity player) {
+    public static boolean hasStoredInventory(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         return data.storedInventory != null;
     }
     
-    public static void restoreInventoryOnRespawn(ServerPlayerEntity player) {
+    public static void restoreInventoryOnRespawn(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         if (data.storedInventory != null) {
             data.storedInventory.restore(player);
@@ -499,7 +491,7 @@ public class PlayerDataManager {
         }
     }
     
-    public static void clearStoredInventory(ServerPlayerEntity player) {
+    public static void clearStoredInventory(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
         data.storedInventory = null;
     }

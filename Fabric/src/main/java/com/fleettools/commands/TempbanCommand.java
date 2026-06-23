@@ -6,35 +6,35 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.network.packet.s2c.play.DisconnectS2CPacket;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
 import com.fleettools.data.PlayerDataManager;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class TempbanCommand {
     private static final String PERMISSION_TEMPBAN = "fleettools.tempban";
     
     private static final Pattern TIME_PATTERN = Pattern.compile("(\\d+)([smhd])");
     
-    private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
-        context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
+    private static final SuggestionProvider<CommandSourceStack> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
+        context.getSource().getServer().getPlayerList().getPlayers().forEach(player -> {
             builder.suggest(player.getName().getString());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
 
-    private static final SuggestionProvider<ServerCommandSource> TIME_SUGGESTIONS = (context, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> TIME_SUGGESTIONS = (context, builder) -> {
         builder.suggest("1h");
         builder.suggest("2h");
         builder.suggest("1d");
@@ -45,10 +45,10 @@ public class TempbanCommand {
         return CompletableFuture.completedFuture(builder.build());
     };
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("tempban")
             .requires(Permissions.require(PERMISSION_TEMPBAN, 3))
-            .then(argument("player", EntityArgumentType.player())
+            .then(argument("player", EntityArgument.player())
                 .suggests(ONLINE_PLAYERS_SUGGESTIONS)
                 .then(argument("time", StringArgumentType.string())
                     .suggests(TIME_SUGGESTIONS)
@@ -58,11 +58,11 @@ public class TempbanCommand {
         );
     }
 
-    private static int executeTempban(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int executeTempban(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         return executeTempbanWithReason(context, "Temporarily banned");
     }
 
-    private static int executeTempbanWithReason(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int executeTempbanWithReason(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         String reason = "Temporarily banned";
         try {
             reason = StringArgumentType.getString(context, "reason");
@@ -72,13 +72,13 @@ public class TempbanCommand {
         return executeTempbanWithReason(context, reason);
     }
 
-    private static int executeTempbanWithReason(CommandContext<ServerCommandSource> context, String reason) throws CommandSyntaxException {
-        ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "player");
+    private static int executeTempbanWithReason(CommandContext<CommandSourceStack> context, String reason) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
         String timeString = StringArgumentType.getString(context, "time");
         
         long banDurationMs = parseTimeToMilliseconds(timeString);
         if (banDurationMs <= 0) {
-            context.getSource().sendError(Text.literal("§cInvalid time format. Use format like: 1h, 30m, 1d, 7d"));
+            context.getSource().sendFailure(Component.literal("§cInvalid time format. Use format like: 1h, 30m, 1d, 7d"));
             return 0;
         }
         
@@ -89,11 +89,11 @@ public class TempbanCommand {
         
         // Disconnect the player with ban message
         String banMessage = "§cYou have been temporarily banned!\n§cReason: " + reason + "\n§cBan expires: " + formatBanExpiry(banUntil);
-        target.networkHandler.disconnect(Text.literal(banMessage));
+        target.connection.disconnect(Component.literal(banMessage));
         
         // Notify administrators
         String adminMessage = "§aTemporarily banned " + target.getName().getString() + " for " + timeString + " (Reason: " + reason + ")";
-        context.getSource().sendFeedback(() -> Text.literal(adminMessage), true);
+        context.getSource().sendSuccess(() -> Component.literal(adminMessage), true);
         
         return 1;
     }

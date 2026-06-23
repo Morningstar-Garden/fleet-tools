@@ -1,39 +1,39 @@
 package com.fleettools.commands;
 
-import com.mojang.authlib.GameProfile;
+import net.minecraft.server.players.NameAndId;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.text.Text;
-import net.minecraft.server.ServerConfigEntry;
-import net.minecraft.server.BannedPlayerList;
-import net.minecraft.server.BannedPlayerEntry;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.players.StoredUserEntry;
+import net.minecraft.server.players.UserBanList;
+import net.minecraft.server.players.UserBanListEntry;
 
 import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class UnbanCommand {
     private static final String PERMISSION = "fleettools.unban";
 
-    private static final SuggestionProvider<ServerCommandSource> BANNED_PLAYERS_SUGGESTIONS = (context, builder) -> {
-        BannedPlayerList bannedPlayers = context.getSource().getServer().getPlayerManager().getUserBanList();
-        for (String name : bannedPlayers.getNames()) {
+    private static final SuggestionProvider<CommandSourceStack> BANNED_PLAYERS_SUGGESTIONS = (context, builder) -> {
+        UserBanList bannedPlayers = context.getSource().getServer().getPlayerList().getBans();
+        for (String name : bannedPlayers.getUserList()) {
             builder.suggest(name);
         }
         return CompletableFuture.completedFuture(builder.build());
     };
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("unban")
             .requires(Permissions.require(PERMISSION, 3))
             .then(argument("player", StringArgumentType.word())
@@ -42,25 +42,25 @@ public class UnbanCommand {
         );
     }
 
-    private static int executeUnban(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int executeUnban(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         String playerName = StringArgumentType.getString(context, "player");
         MinecraftServer server = context.getSource().getServer();
         
         // Try to find the player profile by name
-        GameProfile profile = server.getUserCache().findByName(playerName).orElse(null);
+        NameAndId profile = server.services().nameToIdCache().get(playerName).orElse(null);
         if (profile == null) {
-            context.getSource().sendError(Text.literal("§cPlayer '" + playerName + "' not found."));
+            context.getSource().sendFailure(Component.literal("§cPlayer '" + playerName + "' not found."));
             return 0;
         }
         
-        BannedPlayerList bannedPlayers = server.getPlayerManager().getUserBanList();
-        if (!bannedPlayers.contains(profile)) {
-            context.getSource().sendError(Text.literal("§cPlayer '" + playerName + "' is not banned."));
+        UserBanList bannedPlayers = server.getPlayerList().getBans();
+        if (!bannedPlayers.isBanned(profile)) {
+            context.getSource().sendFailure(Component.literal("§cPlayer '" + playerName + "' is not banned."));
             return 0;
         }
         
         bannedPlayers.remove(profile);
-        context.getSource().sendFeedback(() -> Text.literal("§aUnbanned player '" + playerName + "'."), true);
+        context.getSource().sendSuccess(() -> Component.literal("§aUnbanned player '" + playerName + "'."), true);
         
         return 1;
     }

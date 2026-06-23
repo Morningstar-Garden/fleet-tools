@@ -5,46 +5,46 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class CoordsCommand {
     private static final String PERMISSION_COORDS = "fleettools.coords";
 
-    private static final SuggestionProvider<ServerCommandSource> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
-        context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> {
+    private static final SuggestionProvider<CommandSourceStack> ONLINE_PLAYERS_SUGGESTIONS = (context, builder) -> {
+        context.getSource().getServer().getPlayerList().getPlayers().forEach(player -> {
             builder.suggest(player.getName().getString());
         });
         return CompletableFuture.completedFuture(builder.build());
     };
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("coords")
             .requires(Permissions.require(PERMISSION_COORDS, 2))
-            .then(argument("player", EntityArgumentType.player())
+            .then(argument("player", EntityArgument.player())
                 .suggests(ONLINE_PLAYERS_SUGGESTIONS)
                 .executes(CoordsCommand::executeCoords))
         );
     }
 
-    private static int executeCoords(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "player");
-        ServerPlayerEntity sender = context.getSource().getPlayerOrThrow();
+    private static int executeCoords(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "player");
+        ServerPlayer sender = context.getSource().getPlayerOrException();
         
         // Get player's current position
-        BlockPos pos = target.getBlockPos();
-        World world = target.getWorld();
+        BlockPos pos = target.blockPosition();
+        Level world = target.level();
         String worldName = getWorldDisplayName(world);
         
         // Format coordinates nicely
@@ -58,13 +58,13 @@ public class CoordsCommand {
         );
         
         // Send to command sender
-        sender.sendMessage(Text.literal(coordsMessage), false);
+        sender.sendSystemMessage(Component.literal(coordsMessage), false);
         
         return 1;
     }
     
-    private static String getWorldDisplayName(World world) {
-        String registryKey = world.getRegistryKey().getValue().toString();
+    private static String getWorldDisplayName(Level world) {
+        String registryKey = world.dimension().identifier().toString();
         
         // Make world names more user-friendly
         switch (registryKey) {

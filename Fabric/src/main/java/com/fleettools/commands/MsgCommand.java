@@ -5,35 +5,39 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class MsgCommand {
     private static final String PERMISSION = "fleettools.msg";
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
-        dispatcher.register(literal("msg")
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
+        var msgNode = dispatcher.register(literal("msg")
             .requires(Permissions.require(PERMISSION, 2))
-            .then(argument("target", EntityArgumentType.player())
+            .then(argument("target", EntityArgument.player())
                 .then(argument("message", StringArgumentType.greedyString())
                     .executes(MsgCommand::executeMsg)))
         );
+
+        // Register /tell and /w as aliases that redirect to /msg (same gate and logic).
+        dispatcher.register(literal("tell").requires(Permissions.require(PERMISSION, 2)).redirect(msgNode));
+        dispatcher.register(literal("w").requires(Permissions.require(PERMISSION, 2)).redirect(msgNode));
     }
 
-    private static int executeMsg(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity sender = context.getSource().getPlayerOrThrow();
-        ServerPlayerEntity target = EntityArgumentType.getPlayer(context, "target");
+    private static int executeMsg(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer sender = context.getSource().getPlayerOrException();
+        ServerPlayer target = EntityArgument.getPlayer(context, "target");
         String message = StringArgumentType.getString(context, "message");
         
         if (sender == target) {
             // Send error only to sender via direct packet (completely custom)
-            context.getSource().sendError(net.minecraft.text.Text.literal("§cYou cannot send a message to yourself."));
+            context.getSource().sendFailure(net.minecraft.network.chat.Component.literal("§cYou cannot send a message to yourself."));
             return 0;
         }
         
@@ -42,12 +46,12 @@ public class MsgCommand {
         String senderMsg = "§7[§eYou → " + target.getName().getString() + "§7] §f" + message;
         
         // Send messages using actionbar packets (bypasses chat completely)
-        target.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
-            net.minecraft.text.Text.literal(targetMsg)
+        target.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+            net.minecraft.network.chat.Component.literal(targetMsg)
         ));
-        
-        sender.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.OverlayMessageS2CPacket(
-            net.minecraft.text.Text.literal(senderMsg)
+
+        sender.connection.send(new net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket(
+            net.minecraft.network.chat.Component.literal(senderMsg)
         ));
         
         return 1;

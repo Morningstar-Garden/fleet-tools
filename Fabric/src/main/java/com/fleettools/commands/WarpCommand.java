@@ -7,35 +7,36 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.util.Identifier;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.Identifier;
 import com.fleettools.data.PlayerDataManager;
 
 import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class WarpCommand {
     private static final String PERMISSION_WARP = "fleettools.warp";
     private static final String PERMISSION_SETWARP = "fleettools.setwarp";
     private static final String PERMISSION_DELWARP = "fleettools.delwarp";
 
-    private static final SuggestionProvider<ServerCommandSource> WARP_SUGGESTIONS = (context, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> WARP_SUGGESTIONS = (context, builder) -> {
         PlayerDataManager.getWarps().keySet().forEach(builder::suggest);
         return CompletableFuture.completedFuture(builder.build());
     };
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("warp")
                 .requires(Permissions.require(PERMISSION_WARP, 2))
+                .executes(WarpCommand::executeListWarps)
                 .then(argument("name", StringArgumentType.word())
                         .suggests(WARP_SUGGESTIONS)
                         .executes(WarpCommand::executeWarp)));
@@ -52,46 +53,58 @@ public class WarpCommand {
                         .executes(WarpCommand::executeDelWarp)));
     }
 
-    private static int executeWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+    private static int executeListWarps(CommandContext<CommandSourceStack> context) {
+        java.util.Set<String> names = PlayerDataManager.getWarps().keySet();
+        if (names.isEmpty()) {
+            context.getSource().sendSuccess(() -> Component.literal("§7No warps have been set."), false);
+            return 0;
+        }
+        int count = names.size();
+        String joined = String.join(", ", new java.util.TreeSet<>(names));
+        context.getSource().sendSuccess(() -> Component.literal("§eWarps (" + count + "): §f" + joined), false);
+        return count;
+    }
+
+    private static int executeWarp(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        PlayerDataManager.WarpData warp = PlayerDataManager.getWarp(name, player.getServer());
+        PlayerDataManager.WarpData warp = PlayerDataManager.getWarp(name, player.level().getServer());
         if (warp == null) {
-            player.sendMessage(Text.literal("§cWarp '" + name + "' does not exist."), false);
+            player.sendSystemMessage(Component.literal("§cWarp '" + name + "' does not exist."), false);
             return 0;
         }
-        Identifier worldId = new Identifier(warp.world);
-        RegistryKey<net.minecraft.world.World> worldKey = RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, worldId);
-        ServerWorld world = player.getServer().getWorld(worldKey);
+        Identifier worldId = Identifier.parse(warp.world);
+        ResourceKey<net.minecraft.world.level.Level> worldKey = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, worldId);
+        ServerLevel world = player.level().getServer().getLevel(worldKey);
         if (world == null) {
-            player.sendMessage(Text.literal("§cWarp world not found."), false);
+            player.sendSystemMessage(Component.literal("§cWarp world not found."), false);
             return 0;
         }
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
-        player.teleport(world, warp.location.x, warp.location.y, warp.location.z, player.getYaw(), player.getPitch());
-        player.sendMessage(Text.literal("§aWarped to '" + name + "'."), false);
+        PlayerDataManager.setLastLocation(player, player.position(), player.level());
+        player.teleportTo(world, warp.location.x, warp.location.y, warp.location.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        player.sendSystemMessage(Component.literal("§aWarped to '" + name + "'."), false);
         return 1;
     }
 
-    private static int executeSetWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+    private static int executeSetWarp(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        Vec3d pos = player.getPos();
-        ServerWorld world = player.getServerWorld();
+        Vec3 pos = player.position();
+        ServerLevel world = player.level();
         PlayerDataManager.setWarp(name, pos, world);
-        player.sendMessage(Text.literal("§aWarp '" + name + "' set at your current location."), false);
+        player.sendSystemMessage(Component.literal("§aWarp '" + name + "' set at your current location."), false);
         return 1;
     }
 
-    private static int executeDelWarp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+    private static int executeDelWarp(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
         String name = StringArgumentType.getString(context, "name").toLowerCase();
-        boolean removed = PlayerDataManager.delWarp(name, player.getServer());
+        boolean removed = PlayerDataManager.delWarp(name, player.level().getServer());
         if (removed) {
-            player.sendMessage(Text.literal("§aWarp '" + name + "' deleted."), false);
+            player.sendSystemMessage(Component.literal("§aWarp '" + name + "' deleted."), false);
             return 1;
         } else {
-            player.sendMessage(Text.literal("§cWarp '" + name + "' does not exist."), false);
+            player.sendSystemMessage(Component.literal("§cWarp '" + name + "' does not exist."), false);
             return 0;
         }
     }

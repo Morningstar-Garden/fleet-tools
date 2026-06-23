@@ -1,36 +1,36 @@
 package com.fleettools.events;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import com.fleettools.data.PlayerDataManager;
 
 public class PlayerJoinHandler {
     
     public static void register() {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            ServerPlayerEntity player = handler.getPlayer();
+            ServerPlayer player = handler.getPlayer();
             
             // Restore fly abilities
             boolean flyEnabled = PlayerDataManager.getFlyEnabled(player);
             if (flyEnabled) {
-                player.getAbilities().allowFlying = true;
-                player.sendAbilitiesUpdate();
+                player.getAbilities().mayfly = true;
+                player.onUpdateAbilities();
             }
             
             // Restore god mode
             boolean godMode = PlayerDataManager.getGodMode(player);
             if (godMode) {
                 player.getAbilities().invulnerable = true;
-                player.sendAbilitiesUpdate();
+                player.onUpdateAbilities();
             }
         });
         
         // Save player's location when they disconnect
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            ServerPlayerEntity player = handler.getPlayer();
+            ServerPlayer player = handler.getPlayer();
             
             // Save their current location as their last known location
-            PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+            PlayerDataManager.setLastLocation(player, player.position(), player.level());
         });
     }
 }

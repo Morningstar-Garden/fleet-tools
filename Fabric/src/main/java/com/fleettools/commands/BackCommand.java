@@ -4,46 +4,46 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 import com.fleettools.data.PlayerDataManager;
 
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.literal;
 
 public class BackCommand {
     private static final String PERMISSION_BACK = "fleettools.back";
     
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("back")
                 .requires(Permissions.require(PERMISSION_BACK, 2))
                 .executes(BackCommand::executeBack));
     }
     
-    private static int executeBack(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+    private static int executeBack(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
         
-        Vec3d lastPos = PlayerDataManager.getLastLocation(player);
+        Vec3 lastPos = PlayerDataManager.getLastLocation(player);
         if (lastPos == null) {
-            player.sendMessage(Text.literal("§cYou don't have a previous location to return to."), false);
+            player.sendSystemMessage(Component.literal("§cYou don't have a previous location to return to."), false);
             return 0;
         }
         
-        ServerWorld lastWorld = PlayerDataManager.getLastWorld(player);
+        ServerLevel lastWorld = PlayerDataManager.getLastWorld(player);
         if (lastWorld == null) {
-            lastWorld = player.getServerWorld();
+            lastWorld = player.level();
         }
         
         // Store current position as new last location
-        PlayerDataManager.setLastLocation(player, player.getPos(), player.getServerWorld());
+        PlayerDataManager.setLastLocation(player, player.position(), player.level());
         
         // Teleport to previous location
-        player.teleport(lastWorld, lastPos.x, lastPos.y, lastPos.z, player.getYaw(), player.getPitch());
-        player.sendMessage(Text.literal("Teleported to your previous location."), false);
+        player.teleportTo(lastWorld, lastPos.x, lastPos.y, lastPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        player.sendSystemMessage(Component.literal("Teleported to your previous location."), false);
         
         return 1;
     }

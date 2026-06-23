@@ -2,8 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.fleettools.mixin",
-  "compatibilityLevel": "JAVA_17",
-  "refmap": "fleettools_fabric.refmap.json",
+  "compatibilityLevel": "JAVA_21",
   "priority": 500,
   "mixins": [
     "ServerPlayerEntityMixin",

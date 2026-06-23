@@ -5,24 +5,24 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.text.Text;
-import net.minecraft.world.GameRules;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.commands.Commands.literal;
+import static net.minecraft.commands.Commands.argument;
 
 public class DaylightPauseCommand {
     private static final String PERMISSION = "fleettools.daylightpause";
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         dispatcher.register(literal("daylightpause")
             .requires(Permissions.require(PERMISSION, 2))
             .then(argument("minutes", IntegerArgumentType.integer(1, 1440))
@@ -30,22 +30,22 @@ public class DaylightPauseCommand {
         );
     }
 
-    private static int executePause(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int executePause(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         int minutes = IntegerArgumentType.getInteger(context, "minutes");
         MinecraftServer server = context.getSource().getServer();
         // Pause daylight cycle
-        for (ServerWorld world : server.getWorlds()) {
-            world.getGameRules().get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server);
+        for (ServerLevel world : server.getAllLevels()) {
+            world.getGameRules().set(GameRules.ADVANCE_TIME, false, server);
         }
-        context.getSource().sendFeedback(() -> Text.literal("Daylight cycle paused for " + minutes + " minute(s)."), false);
+        context.getSource().sendSuccess(() -> Component.literal("Daylight cycle paused for " + minutes + " minute(s)."), false);
         // Schedule resume
         new Timer().schedule(new TimerTask() {
             @Override
             public void run() {
-                for (ServerWorld world : server.getWorlds()) {
-                    world.getGameRules().get(GameRules.DO_DAYLIGHT_CYCLE).set(true, server);
+                for (ServerLevel world : server.getAllLevels()) {
+                    world.getGameRules().set(GameRules.ADVANCE_TIME, true, server);
                 }
-                server.getPlayerManager().broadcast(Text.literal("Daylight cycle resumed."), false);
+                server.getPlayerList().broadcastSystemMessage(Component.literal("Daylight cycle resumed."), false);
             }
         }, minutes * 60 * 1000L); // ms
         return 1;

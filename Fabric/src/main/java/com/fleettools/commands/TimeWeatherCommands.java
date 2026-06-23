@@ -4,19 +4,19 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.network.chat.Component;
 
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.literal;
 
 public class TimeWeatherCommands {
     private static final String PERMISSION_TIME = "fleettools.time";
     private static final String PERMISSION_WEATHER = "fleettools.weather";
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, Commands.CommandSelection environment) {
         // Time commands
         dispatcher.register(literal("day")
             .requires(Permissions.require(PERMISSION_TIME, 2))
@@ -45,58 +45,35 @@ public class TimeWeatherCommands {
         );
     }
 
-    private static int executeDay(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerWorld world = context.getSource().getWorld();
-        
-        // Set time to day (1000 ticks = 7:00 AM)
-        world.setTimeOfDay(1000);
-        
-        context.getSource().sendFeedback(() -> Text.literal("§aTime set to day."), true);
-        
+    // 26.2 replaced the simple ServerLevel.setDayTime/setWeather calls with a new
+    // clock/timeline subsystem. Rather than reimplement it, these convenience
+    // commands delegate to the vanilla /time and /weather commands. Access is
+    // already gated by the Permissions.require checks above, so we run them with
+    // a server-level command source so they always succeed once permitted.
+    private static int runVanilla(CommandContext<CommandSourceStack> context, String command, String feedback) {
+        MinecraftServer server = context.getSource().getServer();
+        server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), command);
+        context.getSource().sendSuccess(() -> Component.literal(feedback), true);
         return 1;
     }
 
-    private static int executeNight(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerWorld world = context.getSource().getWorld();
-        
-        // Set time to night (13000 ticks = 7:00 PM)
-        world.setTimeOfDay(13000);
-        
-        context.getSource().sendFeedback(() -> Text.literal("§aTime set to night."), true);
-        
-        return 1;
+    private static int executeDay(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return runVanilla(context, "time set day", "§aTime set to day.");
     }
 
-    private static int executeSun(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerWorld world = context.getSource().getWorld();
-        
-        // Clear weather (no rain, no thunder)
-        world.setWeather(0, 0, false, false);
-        
-        context.getSource().sendFeedback(() -> Text.literal("§aWeather set to clear/sunny."), true);
-        
-        return 1;
+    private static int executeNight(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return runVanilla(context, "time set night", "§aTime set to night.");
     }
 
-    private static int executeRain(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerWorld world = context.getSource().getWorld();
-        
-        // Set rain for 10 minutes (12000 ticks)
-        world.setWeather(0, 12000, true, false);
-        
-        context.getSource().sendFeedback(() -> Text.literal("§aWeather set to rain."), true);
-        
-        return 1;
+    private static int executeSun(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return runVanilla(context, "weather clear", "§aWeather set to clear/sunny.");
     }
 
-    private static int executeThunderstorm(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerWorld world = context.getSource().getWorld();
-        
-        // Set thunderstorm for 10 minutes (12000 ticks)
-        world.setWeather(0, 12000, true, true);
-        
-        context.getSource().sendFeedback(() -> Text.literal("§aWeather set to thunderstorm."), true);
-        
-        return 1;
+    private static int executeRain(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return runVanilla(context, "weather rain", "§aWeather set to rain.");
+    }
+
+    private static int executeThunderstorm(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return runVanilla(context, "weather thunder", "§aWeather set to thunderstorm.");
     }
 }

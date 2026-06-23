@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.6.9'
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
     id 'maven-publish'
     id 'idea'
 }
@@ -14,39 +14,27 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:1.20.1"
-    mappings "net.fabricmc:yarn:1.20.1+build.10:v2"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.0+1.20.1"
-    modImplementation "net.fabricmc:fabric-loader:0.15.7"
-    // Remove individual fabric-api modules to avoid conflicts
-    // modImplementation "net.fabricmc.fabric-api:fabric-message-api-v1:0.83.0+1.20.1"
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    // Minecraft 26.2 ships de-obfuscated (native Mojang names): no mappings, and mod
+    // dependencies use plain `implementation` because Loom no longer remaps them.
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    // fabric-command-api-v2 is bundled in the full fabric-api above; no separate module needed.
+    // Mixin is supplied transitively by fabric-loader and wired up by Loom — do not declare it manually.
 
-    // Add Sponge Mixin for annotation processing and compile
-    implementation "org.spongepowered:mixin:0.8.5"
-    annotationProcessor "org.spongepowered:mixin:0.8.5"
-    compileOnly "org.spongepowered:mixin:0.8.5"
-
-    implementation "org.jetbrains:annotations:23.0.0"
+    implementation "org.jetbrains:annotations:24.1.0"
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
-    implementation 'com.google.code.gson:gson:2.10.1'
-    annotationProcessor 'com.google.code.gson:gson:2.10.1'
+    // gson and guava ship inside Minecraft; provided at compile time only.
     compileOnly 'com.google.code.gson:gson:2.10.1'
-    implementation 'com.google.guava:guava:32.1.2-jre'
-    annotationProcessor 'com.google.guava:guava:32.1.2-jre'
     compileOnly 'com.google.guava:guava:32.1.2-jre'
-    // api project(":Common")  // Temporarily disabled
-
-    modApi("com.terraformersmc:modmenu:7.0.1") { exclude(module: "fabric-api") }
 
     // Fleet Tools dependencies
-    modImplementation "net.fabricmc.fabric-api:fabric-command-api-v2:0.83.0+1.20.1"
-    modImplementation "me.lucko:fabric-permissions-api:0.2-SNAPSHOT"
+    implementation "me.lucko:fabric-permissions-api:0.7.0"
 }
 
 loom {
-    mixin {
-        defaultRefmapName.set("${mod_id}_fabric.refmap.json")
-    }
+    // No mixin{} block: Minecraft 26.2 is de-obfuscated, so mixins target real
+    // names directly and no refmap / legacy mixin AP is required.
 
     runs {
         client {
@@ -108,6 +96,8 @@ publishing {
     }
 }
 
-archivesBaseName = 'fleettools-fabric-1.20.1'
+base {
+    archivesName = "fleettools-fabric-${minecraft_version}"
+}
 
 

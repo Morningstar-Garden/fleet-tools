@@ -2,7 +2,7 @@ package com.fleettools.events;
 
 import com.fleettools.data.PlayerDataManager;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public class TempBanHandler {
     public static void register() {
@@ -19,7 +19,7 @@ public class TempBanHandler {
                                    "§cReason: " + reason + "\n" +
                                    "§cTime remaining: " + timeLeftFormatted;
                 
-                handler.disconnect(Text.literal(banMessage));
+                handler.disconnect(Component.literal(banMessage));
             }
         });
     }

@@ -36,7 +36,8 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'Ore-Discovery-Broadcast-1,20,1'
-include("Common")
+rootProject.name = 'fleettools'
+// Fabric-only build. The Common/Forge modules were never wired into the Fabric
+// jar (their references are commented out in Fabric/build.gradle) and the Forge
+// module no longer exists on disk, so they are excluded from the 26.2 port.
 include("Fabric")
-include("Forge")
