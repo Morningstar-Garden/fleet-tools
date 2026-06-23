@@ -97,7 +97,7 @@ public class TpoCommand {
             ServerLevel targetWorld = onlineTarget.level();
             
             // Save sender's current location for /back
-            PlayerDataManager.setLastLocation(sender, sender.position(), sender.level());
+            PlayerDataManager.setLastLocation(sender);
             
             // Teleport to online player
             sender.teleportTo(targetWorld, targetPos.x, targetPos.y, targetPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), sender.getYRot(), sender.getXRot(), false);
@@ -128,7 +128,7 @@ public class TpoCommand {
             }
             
             // Save sender's current location for /back
-            PlayerDataManager.setLastLocation(sender, sender.position(), sender.level());
+            PlayerDataManager.setLastLocation(sender);
             
             // Teleport to offline player's last location
             sender.teleportTo(lastWorld, lastLocation.x, lastLocation.y, lastLocation.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), sender.getYRot(), sender.getXRot(), false);

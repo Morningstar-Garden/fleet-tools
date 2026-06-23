@@ -76,7 +76,7 @@ public class TopCommand {
         }
         
         // Save the target's current location for /back (only for the person being teleported)
-        PlayerDataManager.setLastLocation(target, target.position(), target.level());
+        PlayerDataManager.setLastLocation(target);
         
         // Teleport the target to the top position (slightly above the block for safety)
         target.teleportTo(world, safePos.getX() + 0.5, safePos.getY(), safePos.getZ() + 0.5, java.util.Set.<net.minecraft.world.entity.Relative>of(), target.getYRot(), target.getXRot(), false);

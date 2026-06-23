@@ -26,13 +26,17 @@ public class PlayerDataManager {
     public static class WarpData {
         public Vec3 location;
         public String world;
+        public float yaw;
+        public float pitch;
 
         public WarpData() {
         }
 
-        public WarpData(Vec3 location, String world) {
+        public WarpData(Vec3 location, String world, float yaw, float pitch) {
             this.location = location;
             this.world = world;
+            this.yaw = yaw;
+            this.pitch = pitch;
         }
     }
 
@@ -69,8 +73,8 @@ public class PlayerDataManager {
         return warps;
     }
 
-    public static void setWarp(String name, Vec3 location, ServerLevel world) {
-        warps.put(name, new WarpData(location, world.dimension().identifier().toString()));
+    public static void setWarp(String name, Vec3 location, ServerLevel world, float yaw, float pitch) {
+        warps.put(name, new WarpData(location, world.dimension().identifier().toString(), yaw, pitch));
         saveWarps(world.getServer());
     }
 
@@ -108,8 +112,12 @@ public class PlayerDataManager {
     public static class PlayerData {
         public Vec3 homeLocation;
         public String homeWorld;
+        public float homeYaw;
+        public float homePitch;
         public Vec3 lastLocation;
         public String lastWorld;
+        public float lastYaw;
+        public float lastPitch;
         public boolean godMode = false;
         public boolean flyEnabled = false;
         public boolean muted = false;
@@ -167,6 +175,8 @@ public class PlayerDataManager {
     public static class GlobalData {
         public Vec3 spawnLocation;
         public String spawnWorld;
+        public float spawnYaw;
+        public float spawnPitch;
 
         public GlobalData() {
         }
@@ -286,11 +296,21 @@ public class PlayerDataManager {
         return player.level().getServer().getLevel(worldKey);
     }
 
-    public static void setHome(ServerPlayer player, Vec3 location, ServerLevel world) {
+    public static void setHome(ServerPlayer player, Vec3 location, ServerLevel world, float yaw, float pitch) {
         PlayerData data = getPlayerData(player);
         data.homeLocation = location;
         data.homeWorld = world.dimension().identifier().toString();
+        data.homeYaw = yaw;
+        data.homePitch = pitch;
         savePlayerData(player);
+    }
+
+    public static float getHomeYaw(ServerPlayer player) {
+        return getPlayerData(player).homeYaw;
+    }
+
+    public static float getHomePitch(ServerPlayer player) {
+        return getPlayerData(player).homePitch;
     }
 
     // Spawn methods
@@ -309,10 +329,20 @@ public class PlayerDataManager {
         return world != null ? world : server.overworld();
     }
 
-    public static void setSpawn(Vec3 location, ServerLevel world) {
+    public static void setSpawn(Vec3 location, ServerLevel world, float yaw, float pitch) {
         globalData.spawnLocation = location;
         globalData.spawnWorld = world.dimension().identifier().toString();
+        globalData.spawnYaw = yaw;
+        globalData.spawnPitch = pitch;
         saveGlobalData(world.getServer());
+    }
+
+    public static float getSpawnYaw() {
+        return globalData.spawnYaw;
+    }
+
+    public static float getSpawnPitch() {
+        return globalData.spawnPitch;
     }
 
     // Back/last location methods
@@ -331,11 +361,27 @@ public class PlayerDataManager {
         return player.level().getServer().getLevel(worldKey);
     }
 
-    public static void setLastLocation(ServerPlayer player, Vec3 location, ServerLevel world) {
+    public static void setLastLocation(ServerPlayer player) {
+        setLastLocation(player, player.position(), player.level(), player.getYRot(), player.getXRot());
+    }
+
+    // Explicit overload: set a player's /back point to a specific location (e.g. their
+    // death position, captured from the old player entity after respawn).
+    public static void setLastLocation(ServerPlayer player, Vec3 location, ServerLevel world, float yaw, float pitch) {
         PlayerData data = getPlayerData(player);
         data.lastLocation = location;
         data.lastWorld = world.dimension().identifier().toString();
+        data.lastYaw = yaw;
+        data.lastPitch = pitch;
         savePlayerData(player);
+    }
+
+    public static float getLastYaw(ServerPlayer player) {
+        return getPlayerData(player).lastYaw;
+    }
+
+    public static float getLastPitch(ServerPlayer player) {
+        return getPlayerData(player).lastPitch;
     }
 
     // God mode methods

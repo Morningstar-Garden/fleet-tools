@@ -38,11 +38,15 @@ public class BackCommand {
             lastWorld = player.level();
         }
         
+        // Capture the previous facing before overwriting the stored last location.
+        float lastYaw = PlayerDataManager.getLastYaw(player);
+        float lastPitch = PlayerDataManager.getLastPitch(player);
+
         // Store current position as new last location
-        PlayerDataManager.setLastLocation(player, player.position(), player.level());
-        
-        // Teleport to previous location
-        player.teleportTo(lastWorld, lastPos.x, lastPos.y, lastPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        PlayerDataManager.setLastLocation(player);
+
+        // Teleport to previous location, facing the direction you were last facing
+        player.teleportTo(lastWorld, lastPos.x, lastPos.y, lastPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), lastYaw, lastPitch, false);
         player.sendSystemMessage(Component.literal("Teleported to your previous location."), false);
         
         return 1;

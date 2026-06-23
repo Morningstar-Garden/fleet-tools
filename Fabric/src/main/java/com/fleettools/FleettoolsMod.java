@@ -7,6 +7,7 @@ import com.fleettools.commands.*;
 import com.fleettools.events.PlayerJoinHandler;
 import com.fleettools.events.TempBanHandler;
 import com.fleettools.events.KeepInventoryHandler;
+import com.fleettools.events.BackOnDeathHandler;
 import com.fleettools.data.PlayerDataManager;
 
 public class FleettoolsMod implements ModInitializer {
@@ -74,6 +75,7 @@ public class FleettoolsMod implements ModInitializer {
         PlayerJoinHandler.register();
         TempBanHandler.register();
         KeepInventoryHandler.register();
+        BackOnDeathHandler.register();
 
         System.out.println("[FLEET TOOLS] All features enabled - Commands, Events, Data Management");
     }

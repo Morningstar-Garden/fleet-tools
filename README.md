@@ -20,7 +20,9 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 ### Back System
 
 - **`/back`** - Return to your previous location
+- Also returns you to your **death location** after you respawn
 - Permission: `fleettools.back` (default: operators only)
+- Death-return is **on by default**; deny `fleettools.back.ondeath` for a player/group to disable just the death-return behavior
 
 ### Teleportation
 
@@ -142,6 +144,7 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/spawn`                    | `fleettools.spawn`           | 2 (operators) |
 | `/setspawn`                 | `fleettools.setspawn`        | 2 (operators) |
 | `/back`                     | `fleettools.back`            | 2 (operators) |
+| `/back` (death-return)      | `fleettools.back.ondeath`    | on by default |
 | `/tpo <player>`             | `fleettools.tpo`             | 2 (operators) |
 | `/top`                      | `fleettools.top`             | 2 (operators) |
 | `/top <player>`             | `fleettools.top.others`      | 2 (operators) |

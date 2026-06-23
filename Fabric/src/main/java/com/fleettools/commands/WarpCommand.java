@@ -80,8 +80,8 @@ public class WarpCommand {
             player.sendSystemMessage(Component.literal("§cWarp world not found."), false);
             return 0;
         }
-        PlayerDataManager.setLastLocation(player, player.position(), player.level());
-        player.teleportTo(world, warp.location.x, warp.location.y, warp.location.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        PlayerDataManager.setLastLocation(player);
+        player.teleportTo(world, warp.location.x, warp.location.y, warp.location.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), warp.yaw, warp.pitch, false);
         player.sendSystemMessage(Component.literal("§aWarped to '" + name + "'."), false);
         return 1;
     }
@@ -91,7 +91,7 @@ public class WarpCommand {
         String name = StringArgumentType.getString(context, "name").toLowerCase();
         Vec3 pos = player.position();
         ServerLevel world = player.level();
-        PlayerDataManager.setWarp(name, pos, world);
+        PlayerDataManager.setWarp(name, pos, world, player.getYRot(), player.getXRot());
         player.sendSystemMessage(Component.literal("§aWarp '" + name + "' set at your current location."), false);
         return 1;
     }

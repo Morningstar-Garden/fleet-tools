@@ -41,7 +41,7 @@ public class TpallCommand {
                 continue;
             }
             // Save each player's current location so they can /back.
-            PlayerDataManager.setLastLocation(player, player.position(), player.level());
+            PlayerDataManager.setLastLocation(player);
             player.teleportTo(world, pos.x, pos.y, pos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
             player.sendSystemMessage(Component.literal("§aYou were teleported to " + destination.getName().getString() + "."), false);
             count++;

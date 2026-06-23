@@ -44,10 +44,10 @@ public class HomeCommand {
         }
         
         // Store current position for /back command
-        PlayerDataManager.setLastLocation(player, player.position(), player.level());
+        PlayerDataManager.setLastLocation(player);
         
-        // Teleport to home
-        player.teleportTo(homeWorld, homePos.x, homePos.y, homePos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        // Teleport to home, facing the direction that was saved
+        player.teleportTo(homeWorld, homePos.x, homePos.y, homePos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), PlayerDataManager.getHomeYaw(player), PlayerDataManager.getHomePitch(player), false);
         player.sendSystemMessage(Component.literal("§aTeleported to home."), false);
         
         return 1;
@@ -59,7 +59,7 @@ public class HomeCommand {
         Vec3 currentPos = player.position();
         ServerLevel currentWorld = player.level();
         
-        PlayerDataManager.setHome(player, currentPos, currentWorld);
+        PlayerDataManager.setHome(player, currentPos, currentWorld, player.getYRot(), player.getXRot());
         player.sendSystemMessage(Component.literal("§aHome set at your current location."), false);
         
         return 1;

@@ -45,10 +45,10 @@ public class SpawnCommand {
         }
         
         // Store current position for /back command
-        PlayerDataManager.setLastLocation(player, player.position(), player.level());
+        PlayerDataManager.setLastLocation(player);
         
-        // Teleport to spawn
-        player.teleportTo(spawnWorld, spawnPos.x, spawnPos.y, spawnPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), player.getYRot(), player.getXRot(), false);
+        // Teleport to spawn, facing the direction that was saved
+        player.teleportTo(spawnWorld, spawnPos.x, spawnPos.y, spawnPos.z, java.util.Set.<net.minecraft.world.entity.Relative>of(), PlayerDataManager.getSpawnYaw(), PlayerDataManager.getSpawnPitch(), false);
         player.sendSystemMessage(Component.literal("§aTeleported to spawn."), false);
         
         return 1;
@@ -60,7 +60,7 @@ public class SpawnCommand {
         Vec3 currentPos = player.position();
         ServerLevel currentWorld = player.level();
         
-        PlayerDataManager.setSpawn(currentPos, currentWorld);
+        PlayerDataManager.setSpawn(currentPos, currentWorld, player.getYRot(), player.getXRot());
         player.sendSystemMessage(Component.literal("§aSpawn set at your current location."), false);
         
         return 1;

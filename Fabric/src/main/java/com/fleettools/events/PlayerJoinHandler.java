@@ -30,7 +30,7 @@ public class PlayerJoinHandler {
             ServerPlayer player = handler.getPlayer();
             
             // Save their current location as their last known location
-            PlayerDataManager.setLastLocation(player, player.position(), player.level());
+            PlayerDataManager.setLastLocation(player);
         });
     }
 }
