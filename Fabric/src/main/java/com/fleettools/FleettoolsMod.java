@@ -34,6 +34,7 @@ public class FleettoolsMod implements ModInitializer {
             DelHomeCommand.register(dispatcher, registryAccess, environment);
             WarpCommand.register(dispatcher, registryAccess, environment);
             DaylightPauseCommand.register(dispatcher, registryAccess, environment);
+            KeepInvCommand.register(dispatcher, registryAccess, environment);
             // /msg, /tell and /w are vanilla commands; remove all three so our
             // permission-gated version (and its /tell, /w aliases) takes effect
             // rather than being merged onto vanilla's nodes.
@@ -42,7 +43,6 @@ public class FleettoolsMod implements ModInitializer {
             removeCommand(dispatcher, "w");
             MsgCommand.register(dispatcher, registryAccess, environment);
             BroadcastCommand.register(dispatcher, registryAccess, environment);
-            KeepInvCommand.register(dispatcher, registryAccess, environment);
             // Moderation commands
             // /ban, /ban-ip and /banlist are vanilla commands; remove them so our
             // permission-gated versions apply instead of merging onto vanilla's nodes.
@@ -67,6 +67,7 @@ public class FleettoolsMod implements ModInitializer {
             TpoCommand.register(dispatcher, registryAccess, environment);
             TopCommand.register(dispatcher, registryAccess, environment);
             TpallCommand.register(dispatcher, registryAccess, environment);
+            TeleportRequestCommands.register(dispatcher, registryAccess, environment);
             // Time and Weather commands
             TimeWeatherCommands.register(dispatcher, registryAccess, environment);
         });

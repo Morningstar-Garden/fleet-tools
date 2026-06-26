@@ -21,7 +21,7 @@ public class LivingEntityDeathMixin {
         // Only handle players
         if (entity instanceof ServerPlayer player) {
             // Cancel all death-loot dropping if player has keep inventory enabled
-            if (PlayerDataManager.getKeepInventory(player)) {
+            if (PlayerDataManager.shouldKeepInventory(player)) {
                 ci.cancel();
             }
         }

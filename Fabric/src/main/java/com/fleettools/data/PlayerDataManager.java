@@ -11,6 +11,7 @@ import java.util.UUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
@@ -121,7 +122,9 @@ public class PlayerDataManager {
         public boolean godMode = false;
         public boolean flyEnabled = false;
         public boolean muted = false;
-        public boolean keepInventory = true; // Opt-out keep inventory - enabled by default
+        // Per-player keep-inventory override set in-game via /keepinv. null = follow
+        // the fleettools.keepinventory permission; true/false = explicit override.
+        public Boolean keepInventoryOverride;
         public long tempBanUntil = 0; // Timestamp when temp ban expires (0 = not banned)
         public String tempBanReason = "";
         
@@ -498,14 +501,24 @@ public class PlayerDataManager {
         savePlayerData(player);
     }
 
-    // Keep Inventory methods
-    public static boolean getKeepInventory(ServerPlayer player) {
-        return getPlayerData(player).keepInventory;
+    // Keep Inventory
+    // Controlled by the fleettools.keepinventory permission (granted to operators
+    // at level 2 by default), with a per-player in-game override (/keepinv) that
+    // takes precedence when set — so servers without a permissions manager can
+    // still grant/revoke keep-inventory.
+    public static final String PERMISSION_KEEP_INVENTORY = "fleettools.keepinventory";
+
+    public static boolean shouldKeepInventory(ServerPlayer player) {
+        Boolean override = getPlayerData(player).keepInventoryOverride;
+        return override != null ? override : Permissions.check(player, PERMISSION_KEEP_INVENTORY, 2);
     }
 
-    public static void setKeepInventory(ServerPlayer player, boolean enabled) {
-        PlayerData data = getPlayerData(player);
-        data.keepInventory = enabled;
+    public static Boolean getKeepInventoryOverride(ServerPlayer player) {
+        return getPlayerData(player).keepInventoryOverride;
+    }
+
+    public static void setKeepInventoryOverride(ServerPlayer player, boolean value) {
+        getPlayerData(player).keepInventoryOverride = value;
         savePlayerData(player);
     }
 

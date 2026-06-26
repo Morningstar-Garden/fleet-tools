@@ -13,7 +13,7 @@ public class KeepInventoryHandler {
         // Register for entity death events - capture inventory before death
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, damageSource, damageAmount) -> {
             if (entity instanceof ServerPlayer player) {
-                boolean keepInv = PlayerDataManager.getKeepInventory(player);
+                boolean keepInv = PlayerDataManager.shouldKeepInventory(player);
                 if (keepInv) {
                     // Store the player's inventory in persistent storage
                     PlayerDataManager.storeInventoryOnDeath(player);

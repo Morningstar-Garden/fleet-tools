@@ -31,6 +31,17 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 - **`/tpall [player]`** - Teleport all online players to you (or to the given player)
 - Permission: `fleettools.tpo`, `fleettools.top`, `fleettools.top.others`, `fleettools.tpall` (default: operators only)
 
+### Teleport Requests
+
+Consensual player-to-player teleporting (EssentialsX-style), available to all players by default:
+
+- **`/tpa <player>`** - Request to teleport **to** another player
+- **`/tphere <player>`** - Request that another player teleport **to you**
+- **`/tpaccept [player]`** - Accept a request — the most recent one, or a specific player's
+- **`/tpdeny [player]`** - Deny a request — the most recent one, or a specific player's
+- You can hold **multiple incoming requests** at once (one per requester); a new request from the same player replaces their old one. Requests expire after 2 minutes.
+- Permission: `fleettools.tpa`, `fleettools.tphere`, `fleettools.tpaccept`, `fleettools.tpdeny` (default: everyone)
+
 ### Health & Hunger
 
 - **`/heal [player]`** - Restore health to full and clear negative effects
@@ -53,12 +64,12 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 
 ### Keep Inventory System
 
-- **`/keepinv`** - Toggle your personal keep inventory setting (enabled by default)
+- **`/keepinv`** - Toggle your own keep inventory (admin)
 - **`/keepinv status`** - Check your current keep inventory status
-- **`/keepinv <player>`** - Toggle keep inventory for another player (admin only)
-- Permission: `fleettools.keepinv`, `fleettools.keepinv.others` (default: all players for self, operators for others)
+- **`/keepinv <player>`** - Toggle keep inventory for another player (admin)
+- Permission: `fleettools.keepinventory` (keep items on death — **granted to operators by default**), `fleettools.keepinv` / `fleettools.keepinv.others` (command access, operators)
 
-The keep inventory system is an opt-out feature that allows players to keep their items on death without affecting the server's gamerule. By default, all players have keep inventory enabled, but they can turn it off if they prefer the vanilla experience. Players still lose XP when they die, maintaining some consequence for death.
+Keep inventory is gated by the **`fleettools.keepinventory`** permission, which operators have by default. Grant it to other players/groups (or deny it) through a permissions manager like LuckPerms. For servers **without** a permissions manager, the `/keepinv` command sets a per-player override that takes precedence — so admins can grant or revoke keep-inventory in-game. Players still lose XP when they die, maintaining some consequence for death.
 
 This system works with modded inventories, trinkets, and backpacks, ensuring comprehensive item protection regardless of which inventory expansion mods are installed. **AFK players are fully supported** - inventory data is stored persistently and will be restored even if players don't respawn for extended periods or disconnect while dead.
 
@@ -102,9 +113,10 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 
 ### Utility Commands
 
-- **`/coords <player>`** - Display player's coordinates and world information
+- **`/coords`** - Display your own coordinates and world information (available to everyone by default)
+- **`/coords <player>`** - Display another player's coordinates (operators/mods only)
 - **`/daylight-pause`** - Pause or resume the daylight cycle
-- Permission: `fleettools.coords`, `fleettools.daylight` (default: operators only)
+- Permission: `fleettools.coords` (self, default: everyone), `fleettools.coords.others` (others, default: operators), `fleettools.daylight` (default: operators only)
 
 ### Time & Weather Control
 
@@ -149,6 +161,10 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/top`                      | `fleettools.top`             | 2 (operators) |
 | `/top <player>`             | `fleettools.top.others`      | 2 (operators) |
 | `/tpall`                    | `fleettools.tpall`           | 2 (operators) |
+| `/tpa`                      | `fleettools.tpa`             | everyone      |
+| `/tphere`                   | `fleettools.tphere`          | everyone      |
+| `/tpaccept`                 | `fleettools.tpaccept`        | everyone      |
+| `/tpdeny`                   | `fleettools.tpdeny`          | everyone      |
 | `/heal`                     | `fleettools.heal`            | 2 (operators) |
 | `/heal <player>`            | `fleettools.heal.others`     | 2 (operators) |
 | `/feed`                     | `fleettools.feed`            | 2 (operators) |
@@ -174,7 +190,8 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/kill <player>`            | `fleettools.kill.others`     | 2 (operators) |
 | `/msg` `/tell` `/w`         | `fleettools.msg`             | 2 (operators) |
 | `/broadcast` `/bc`          | `fleettools.broadcast`       | 3 (admins)    |
-| `/coords`                   | `fleettools.coords`          | 2 (operators) |
+| `/coords` (self)            | `fleettools.coords`          | everyone      |
+| `/coords <player>`          | `fleettools.coords.others`   | 2 (operators) |
 | `/daylight-pause`           | `fleettools.daylight`        | 2 (operators) |
 | `/day`                      | `fleettools.time`            | 2 (operators) |
 | `/night`                    | `fleettools.time`            | 2 (operators) |
