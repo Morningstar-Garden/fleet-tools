@@ -68,6 +68,9 @@ public class FleettoolsMod implements ModInitializer {
             TopCommand.register(dispatcher, registryAccess, environment);
             TpallCommand.register(dispatcher, registryAccess, environment);
             TeleportRequestCommands.register(dispatcher, registryAccess, environment);
+            TpToggleCommand.register(dispatcher, registryAccess, environment);
+            ReplyCommand.register(dispatcher, registryAccess, environment);
+            AfkCommand.register(dispatcher, registryAccess, environment);
             // Time and Weather commands
             TimeWeatherCommands.register(dispatcher, registryAccess, environment);
         });
@@ -77,6 +80,13 @@ public class FleettoolsMod implements ModInitializer {
         TempBanHandler.register();
         KeepInventoryHandler.register();
         BackOnDeathHandler.register();
+        com.fleettools.events.AfkManager.register();
+
+        // Optional Text Placeholder API integration (StyledChat / StyledPlayerList).
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("placeholder-api")) {
+            com.fleettools.integration.PlaceholderIntegration.register();
+            System.out.println("[FLEET TOOLS] Registered placeholder %fleettools:afk% for StyledChat/StyledPlayerList");
+        }
 
         System.out.println("[FLEET TOOLS] All features enabled - Commands, Events, Data Management");
     }

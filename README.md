@@ -6,9 +6,11 @@ Fleet Tools is a comprehensive Fabric mod that brings essential server administr
 
 ### Home System
 
-- **`/home`** - Teleport to your home location
-- **`/sethome`** - Set your home at your current location
-- **`/delhome`** - Delete your home location
+- **`/home [name]`** - Teleport to a home (your only home, your "home", or a named one)
+- **`/sethome [name]`** - Set a home at your current location (defaults to "home")
+- **`/delhome [name]`** - Delete a home (defaults to "home")
+- **`/homes`** - List your homes
+- Up to **3 homes** by default; grant `fleettools.homes.unlimited` for no limit
 - Permission: `fleettools.home`, `fleettools.sethome`, `fleettools.delhome` (default: operators only)
 
 ### Spawn System
@@ -39,8 +41,9 @@ Consensual player-to-player teleporting (EssentialsX-style), available to all pl
 - **`/tphere <player>`** - Request that another player teleport **to you**
 - **`/tpaccept [player]`** - Accept a request — the most recent one, or a specific player's
 - **`/tpdeny [player]`** - Deny a request — the most recent one, or a specific player's
+- **`/tptoggle`** - Toggle whether you accept incoming teleport requests
 - You can hold **multiple incoming requests** at once (one per requester); a new request from the same player replaces their old one. Requests expire after 2 minutes.
-- Permission: `fleettools.tpa`, `fleettools.tphere`, `fleettools.tpaccept`, `fleettools.tpdeny` (default: everyone)
+- Permission: `fleettools.tpa`, `fleettools.tphere`, `fleettools.tpaccept`, `fleettools.tpdeny`, `fleettools.tptoggle` (default: everyone)
 
 ### Health & Hunger
 
@@ -92,7 +95,7 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 - **`/ban-ip <ip|player> [reason]`** - Ban an IP address (or an online player's IP) and kick anyone connected from it
 - **`/banlist [players|ips]`** - List banned players and/or IP addresses
 - **`/unban <player>`** - Remove player from ban list (substitute for /pardon)
-- **`/mute <player>`** - Prevent player from sending chat messages
+- **`/mute <player> [time] [reason]`** - Prevent a player from chatting, permanently or for a duration (e.g. `30m`, `1h`, `1d`)
 - **`/unmute <player>`** - Allow muted player to send chat messages again
 - **`/tempban <player> <time> [reason]`** - Temporarily ban player with automatic expiry
   - Time formats: `30s`, `5m`, `2h`, `1d`, `7d`, etc.
@@ -108,10 +111,22 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 ### Communication
 
 - **`/msg <player> <message>`** - Send private message to player with actionbar display (also `/tell`, `/w`)
+- **`/reply <message>`** - Reply to the last player you messaged (alias: `/r`)
 - **`/broadcast <message>`** - Send a server-wide announcement to all players (alias: `/bc`)
-- Permission: `fleettools.msg`, `fleettools.broadcast` (default: operators only)
+- **`/afk`** - Toggle your AFK status (announced to the server; while AFK your name is shown **grayed out with an `[AFK]` tag** in the player list). Players are also auto-marked AFK after 5 minutes without moving, and cleared the moment they move or look around. AFK players are **ignored by the sleep check**, so they don't stop others from skipping the night.
+  - **LuckPerms integration**: if LuckPerms is installed, AFK status is reflected in the player's prefix (a transient, in-memory prefix node that prepends a gray `[AFK]` and grays the prefix/name), so it flows automatically through **`%luckperms:prefix%`** — meaning it shows in StyledChat and StyledPlayerList wherever you already use that placeholder, with no format changes.
+  - **Text Placeholder API**: alternatively, if the placeholder API is present, **`%fleettools:afk%`** is available (renders `[AFK] ` while AFK, otherwise nothing) for direct use in formats. When StyledPlayerList is present, Fleet Tools defers the raw player-list `[AFK]` tag to these integrations to avoid double tags.
+- Permission: `fleettools.msg`, `fleettools.broadcast`, `fleettools.afk` (default: operators for msg/broadcast, everyone for afk)
 
-### Utility Commands
+### Chat Formatting (LuckPerms prefix/suffix)
+
+EssentialsXChat-style chat formatting using ranks from LuckPerms (the Fabric equivalent of EssentialsX + EssentialsXChat + Vault):
+
+- Chat shows the **LuckPerms prefix/suffix** on the sender's name, rendered as **`<prefix name suffix> message`**.
+- **Messages stay cryptographically signed and reportable** — Fleet Tools only decorates the displayed sender name; it never cancels or re-sends the message, so secure-chat / reporting and console logging keep working.
+- The player list shows the same **LuckPerms prefix** before each name (with AFK players grayed).
+- **Defers to StyledChat / StyledPlayerList**: if either is installed it owns chat / the player list, so Fleet Tools steps aside (configure `%luckperms:prefix%` there instead). Fleet Tools' built-in formatting is for servers **without** those mods.
+- Requires LuckPerms for prefixes; without it, chat and the player list are unchanged.
 
 - **`/coords`** - Display your own coordinates and world information (available to everyone by default)
 - **`/coords <player>`** - Display another player's coordinates (operators/mods only)

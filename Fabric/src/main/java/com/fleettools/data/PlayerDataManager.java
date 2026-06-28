@@ -89,18 +89,6 @@ public class PlayerDataManager {
         return warps.get(name);
     }
 
-    // Removes the player's home and returns true if a home was removed
-    public static boolean removeHome(ServerPlayer player) {
-        PlayerData data = getPlayerData(player);
-        if (data.homeLocation != null) {
-            data.homeLocation = null;
-            data.homeWorld = null;
-            savePlayerData(player);
-            return true;
-        }
-        return false;
-    }
-
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String DATA_FOLDER = "fleettools";
     private static final String PLAYERS_FOLDER = "players";
@@ -110,7 +98,27 @@ public class PlayerDataManager {
     private static GlobalData globalData;
     private static MinecraftServer serverInstance;
 
+    public static class HomeData {
+        public Vec3 location;
+        public String world;
+        public float yaw;
+        public float pitch;
+
+        public HomeData() {
+        }
+
+        public HomeData(Vec3 location, String world, float yaw, float pitch) {
+            this.location = location;
+            this.world = world;
+            this.yaw = yaw;
+            this.pitch = pitch;
+        }
+    }
+
     public static class PlayerData {
+        // Named homes. Legacy single-home fields below are migrated into this map.
+        public Map<String, HomeData> homes;
+        // Legacy single-home fields (pre-multi-home); migrated lazily into `homes`.
         public Vec3 homeLocation;
         public String homeWorld;
         public float homeYaw;
@@ -121,7 +129,10 @@ public class PlayerDataManager {
         public float lastPitch;
         public boolean godMode = false;
         public boolean flyEnabled = false;
-        public boolean muted = false;
+        public boolean tpEnabled = true; // accepts incoming teleport requests (/tptoggle)
+        public boolean muted = false; // legacy permanent-mute flag; migrated into muteUntil
+        public long muteUntil = 0; // 0 = not muted, Long.MAX_VALUE = permanent, else expiry epoch ms
+        public String muteReason = "";
         // Per-player keep-inventory override set in-game via /keepinv. null = follow
         // the fleettools.keepinventory permission; true/false = explicit override.
         public Boolean keepInventoryOverride;
@@ -291,37 +302,58 @@ public class PlayerDataManager {
         }
     }
 
-    // Home methods
-    public static Vec3 getHome(ServerPlayer player) {
+    // Home methods (multiple named homes)
+    public static final String DEFAULT_HOME = "home";
+
+    // Returns the player's homes map, creating it and migrating any legacy single
+    // home into a "home" entry on first access.
+    private static Map<String, HomeData> homesOf(ServerPlayer player) {
         PlayerData data = getPlayerData(player);
-        return data.homeLocation;
+        if (data.homes == null) {
+            data.homes = new HashMap<>();
+        }
+        if (data.homeLocation != null) {
+            // Migrate the legacy single home, without clobbering an existing "home".
+            data.homes.putIfAbsent(DEFAULT_HOME, new HomeData(data.homeLocation, data.homeWorld, data.homeYaw, data.homePitch));
+            data.homeLocation = null;
+            data.homeWorld = null;
+            savePlayerData(player);
+        }
+        return data.homes;
     }
 
-    public static ServerLevel getHomeWorld(ServerPlayer player) {
-        PlayerData data = getPlayerData(player);
-        if (data.homeWorld == null)
-            return null;
-
-        Identifier worldId = Identifier.parse(data.homeWorld);
-        ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, worldId);
-        return player.level().getServer().getLevel(worldKey);
+    public static HomeData getHome(ServerPlayer player, String name) {
+        return homesOf(player).get(name.toLowerCase());
     }
 
-    public static void setHome(ServerPlayer player, Vec3 location, ServerLevel world, float yaw, float pitch) {
-        PlayerData data = getPlayerData(player);
-        data.homeLocation = location;
-        data.homeWorld = world.dimension().identifier().toString();
-        data.homeYaw = yaw;
-        data.homePitch = pitch;
+    public static java.util.Set<String> getHomeNames(ServerPlayer player) {
+        return new java.util.TreeSet<>(homesOf(player).keySet());
+    }
+
+    public static int getHomeCount(ServerPlayer player) {
+        return homesOf(player).size();
+    }
+
+    public static void setHome(ServerPlayer player, String name, Vec3 location, ServerLevel world, float yaw, float pitch) {
+        homesOf(player).put(name.toLowerCase(), new HomeData(location, world.dimension().identifier().toString(), yaw, pitch));
         savePlayerData(player);
     }
 
-    public static float getHomeYaw(ServerPlayer player) {
-        return getPlayerData(player).homeYaw;
+    public static boolean removeHome(ServerPlayer player, String name) {
+        boolean removed = homesOf(player).remove(name.toLowerCase()) != null;
+        if (removed) {
+            savePlayerData(player);
+        }
+        return removed;
     }
 
-    public static float getHomePitch(ServerPlayer player) {
-        return getPlayerData(player).homePitch;
+    // Resolves a stored home's world (or null if it no longer exists).
+    public static ServerLevel resolveWorld(ServerPlayer player, String worldId) {
+        if (worldId == null) {
+            return null;
+        }
+        ResourceKey<Level> worldKey = ResourceKey.create(Registries.DIMENSION, Identifier.parse(worldId));
+        return player.level().getServer().getLevel(worldKey);
     }
 
     // Spawn methods
@@ -447,16 +479,61 @@ public class PlayerDataManager {
         savePlayerData(player);
     }
 
-    // Mute methods
-    public static boolean isMuted(ServerPlayer player) {
-        PlayerData data = getPlayerData(player);
-        return data.muted;
+    // Teleport-request toggle (/tptoggle)
+    public static boolean isTpEnabled(ServerPlayer player) {
+        return getPlayerData(player).tpEnabled;
     }
 
-    public static void setMuted(ServerPlayer player, boolean muted) {
-        PlayerData data = getPlayerData(player);
-        data.muted = muted;
+    public static void setTpEnabled(ServerPlayer player, boolean enabled) {
+        getPlayerData(player).tpEnabled = enabled;
         savePlayerData(player);
+    }
+
+    // Mute methods (timed)
+    public static boolean isMuted(ServerPlayer player) {
+        PlayerData data = getPlayerData(player);
+        // Migrate the legacy permanent-mute flag.
+        if (data.muted && data.muteUntil == 0) {
+            data.muteUntil = Long.MAX_VALUE;
+            data.muted = false;
+        }
+        if (data.muteUntil == 0) {
+            return false;
+        }
+        if (data.muteUntil != Long.MAX_VALUE && System.currentTimeMillis() >= data.muteUntil) {
+            // Expired.
+            data.muteUntil = 0;
+            data.muteReason = "";
+            savePlayerData(player);
+            return false;
+        }
+        return true;
+    }
+
+    // muteUntil: Long.MAX_VALUE for permanent, or an epoch-ms expiry.
+    public static void mute(ServerPlayer player, long muteUntil, String reason) {
+        PlayerData data = getPlayerData(player);
+        data.muteUntil = muteUntil;
+        data.muteReason = reason == null ? "" : reason;
+        data.muted = false;
+        savePlayerData(player);
+    }
+
+    public static void unmute(ServerPlayer player) {
+        PlayerData data = getPlayerData(player);
+        data.muteUntil = 0;
+        data.muteReason = "";
+        data.muted = false;
+        savePlayerData(player);
+    }
+
+    public static long getMuteExpiry(ServerPlayer player) {
+        return getPlayerData(player).muteUntil;
+    }
+
+    public static String getMuteReason(ServerPlayer player) {
+        String reason = getPlayerData(player).muteReason;
+        return reason == null ? "" : reason;
     }
 
     // Temporary ban methods

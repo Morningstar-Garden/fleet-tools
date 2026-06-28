@@ -105,6 +105,11 @@ public class TeleportRequestCommands {
             return 0;
         }
 
+        if (!PlayerDataManager.isTpEnabled(recipient)) {
+            requester.sendSystemMessage(Component.literal("§e" + recipient.getName().getString() + "§c is not accepting teleport requests."), false);
+            return 0;
+        }
+
         // Replace any existing request from this requester and move it to the most-recent slot.
         LinkedHashMap<UUID, Request> queue = QUEUES.computeIfAbsent(recipient.getUUID(), k -> new LinkedHashMap<>());
         queue.remove(requester.getUUID());

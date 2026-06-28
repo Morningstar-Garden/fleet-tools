@@ -11,6 +11,7 @@ repositories {
     maven { url = "https://maven.shedaniel.me/" }
     mavenCentral()
     maven { url "https://github.com/Serilum/.maven/raw/maven/" }
+    maven { url = "https://maven.nucleoid.xyz/" } // Text Placeholder API (StyledChat / StyledPlayerList)
 }
 
 dependencies {
@@ -30,6 +31,14 @@ dependencies {
 
     // Fleet Tools dependencies
     implementation "me.lucko:fabric-permissions-api:0.7.0"
+
+    // Text Placeholder API — compile-only soft dependency for StyledChat / StyledPlayerList
+    // integration (provided at runtime by those mods; guarded by isModLoaded checks).
+    compileOnly "eu.pb4:placeholder-api:3.1.0-beta.1+26.2"
+
+    // LuckPerms API — compile-only soft dependency for the AFK prefix integration
+    // (provided at runtime by LuckPerms; guarded by isModLoaded checks).
+    compileOnly "net.luckperms:api:5.4"
 }
 
 loom {

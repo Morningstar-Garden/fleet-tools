@@ -7,7 +7,9 @@
   "mixins": [
     "ServerPlayerEntityMixin",
     "ServerPlayNetworkHandlerMixin",
-    "LivingEntityDeathMixin"
+    "LivingEntityDeathMixin",
+    "SleepStatusMixin",
+    "PlayerListMixin"
   ],
   "client": [],
   "server": [

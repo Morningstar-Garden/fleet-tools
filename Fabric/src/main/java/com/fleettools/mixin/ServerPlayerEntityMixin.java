@@ -35,4 +35,16 @@ public class ServerPlayerEntityMixin {
             cir.setReturnValue(false);
         }
     }
+
+    // Render the player-list name with the LuckPerms prefix, grayed with an [AFK] tag
+    // while AFK. Skipped when StyledPlayerList is present (it owns the list).
+    @Inject(method = "getTabListDisplayName", at = @At("RETURN"), cancellable = true)
+    private void fleettools_tabName(CallbackInfoReturnable<net.minecraft.network.chat.Component> cir) {
+        ServerPlayer player = (ServerPlayer) (Object) this;
+        net.minecraft.network.chat.Component base = cir.getReturnValue() != null ? cir.getReturnValue() : player.getName();
+        net.minecraft.network.chat.Component custom = com.fleettools.events.AfkManager.tabDisplayName(player, base);
+        if (custom != null) {
+            cir.setReturnValue(custom);
+        }
+    }
 }
