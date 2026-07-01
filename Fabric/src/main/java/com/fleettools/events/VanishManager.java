@@ -1,10 +1,14 @@
 package com.fleettools.events;
 
 import me.lucko.fabric.api.permissions.v0.Permissions;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.NameAndId;
 
 import java.util.HashSet;
 import java.util.List;
@@ -44,6 +48,31 @@ public class VanishManager {
         }
 
         MinecraftServer server = player.level().getServer();
+
+        // Fake connection message so vanishing looks like a normal quit and un-vanishing
+        // like a normal join, shown only to players who can't see the vanished player
+        // (staff who can see them would find a "left"/"joined" line contradictory).
+        // Mirrors vanilla's placeNewPlayer/removePlayerFromWorld wording exactly, including
+        // the "(formerly known as X)" renamed-join variant used when the name cache differs
+        // from the current profile name (e.g. Bedrock players via Geyser/Floodgate), so the
+        // line is indistinguishable from a real one.
+        MutableComponent fakeMessage;
+        if (vanish) {
+            fakeMessage = Component.translatable("multiplayer.player.left", player.getDisplayName());
+        } else {
+            NameAndId nameId = player.nameAndId();
+            String cachedName = server.services().nameToIdCache().get(nameId.id())
+                    .map(NameAndId::name)
+                    .orElse(nameId.name());
+            if (nameId.name().equalsIgnoreCase(cachedName)) {
+                fakeMessage = Component.translatable("multiplayer.player.joined", player.getDisplayName());
+            } else {
+                fakeMessage = Component.translatable("multiplayer.player.joined.renamed",
+                        player.getDisplayName(), cachedName);
+            }
+        }
+        fakeMessage = fakeMessage.withStyle(ChatFormatting.YELLOW);
+
         for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
             if (viewer == player || canSee(viewer)) {
                 continue; // never hide from the player themselves or from staff
@@ -53,6 +82,7 @@ public class VanishManager {
             } else {
                 viewer.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(player)));
             }
+            viewer.sendSystemMessage(fakeMessage);
         }
         // The entity model is hidden/shown by TrackedEntityMixin on the next tracking tick.
 
