@@ -80,6 +80,13 @@ public class AfkManager {
         return afk.contains(player);
     }
 
+    // True when hostile mobs should ignore this player: AFK (with the server-wide
+    // AFK-protection setting on) or vanished. Used by the damage and mob-targeting mixins.
+    public static boolean isProtected(UUID player) {
+        return (afk.contains(player) && com.fleettools.data.PlayerDataManager.getAfkProtection())
+                || VanishManager.isVanished(player);
+    }
+
     // Manual /afk toggle.
     public static void toggle(ServerPlayer player) {
         if (afk.contains(player.getUUID())) {
@@ -137,11 +144,15 @@ public class AfkManager {
         server.getPlayerList().broadcastAll(
                 new ClientboundPlayerInfoUpdatePacket(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, player));
 
-        String name = player.getName().getString();
-        Component message = Component.literal(value
-                ? "§7* §e" + name + "§7 is now AFK."
-                : "§7* §e" + name + "§7 is no longer AFK.");
-        server.getPlayerList().broadcastSystemMessage(message, false);
+        // Vanished players stay silent: broadcasting their AFK status would reveal they
+        // are online to players who can't see them.
+        if (!VanishManager.isVanished(player.getUUID())) {
+            String name = player.getName().getString();
+            Component message = Component.literal(value
+                    ? "§7* §e" + name + "§7 is now AFK."
+                    : "§7* §e" + name + "§7 is no longer AFK.");
+            server.getPlayerList().broadcastSystemMessage(message, false);
+        }
     }
 
     private static double[] snapshot(ServerPlayer player) {

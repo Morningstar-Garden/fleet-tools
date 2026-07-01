@@ -6,10 +6,21 @@
   "priority": 500,
   "mixins": [
     "ServerPlayerEntityMixin",
+    "MobTargetMixin",
     "ServerPlayNetworkHandlerMixin",
     "LivingEntityDeathMixin",
     "SleepStatusMixin",
-    "PlayerListMixin"
+    "PlayerListMixin",
+    "TrackedEntityMixin",
+    "PlayerInfoSendMixin",
+    "PlayerInfoUpdatePacketAccessor",
+    "VanishJoinMessageMixin",
+    "VanishQuitMessageMixin",
+    "VanishAdvancementMixin",
+    "VanishDeathMessageMixin",
+    "VanishServerStatusMixin",
+    "VanishSuggestionMixin",
+    "WaypointVanishMixin"
   ],
   "client": [],
   "server": [

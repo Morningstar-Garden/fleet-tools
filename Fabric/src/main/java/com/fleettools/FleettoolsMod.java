@@ -62,6 +62,10 @@ public class FleettoolsMod implements ModInitializer {
             removeCommand(dispatcher, "kill");
             KickCommand.register(dispatcher, registryAccess, environment);
             KillCommand.register(dispatcher, registryAccess, environment);
+            // /list is vanilla; remove it so our version (which hides vanished players
+            // from viewers who can't see them) takes effect instead of merging.
+            removeCommand(dispatcher, "list");
+            ListCommand.register(dispatcher, registryAccess, environment);
             // Utility commands
             CoordsCommand.register(dispatcher, registryAccess, environment);
             TpoCommand.register(dispatcher, registryAccess, environment);
@@ -71,6 +75,8 @@ public class FleettoolsMod implements ModInitializer {
             TpToggleCommand.register(dispatcher, registryAccess, environment);
             ReplyCommand.register(dispatcher, registryAccess, environment);
             AfkCommand.register(dispatcher, registryAccess, environment);
+            VanishCommand.register(dispatcher, registryAccess, environment);
+            AfkProtectCommand.register(dispatcher, registryAccess, environment);
             // Time and Weather commands
             TimeWeatherCommands.register(dispatcher, registryAccess, environment);
         });
@@ -81,6 +87,7 @@ public class FleettoolsMod implements ModInitializer {
         KeepInventoryHandler.register();
         BackOnDeathHandler.register();
         com.fleettools.events.AfkManager.register();
+        com.fleettools.events.VanishManager.register();
 
         // Optional Text Placeholder API integration (StyledChat / StyledPlayerList).
         if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("placeholder-api")) {

@@ -28,10 +28,17 @@ public class ServerPlayerEntityMixin {
     @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void fleettools_onDamage(net.minecraft.server.level.ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         ServerPlayer player = (ServerPlayer) (Object) this;
-        
+
         // Check if player has god mode enabled
         if (PlayerDataManager.getGodMode(player)) {
             // Cancel damage if player is in god mode
+            cir.setReturnValue(false);
+            return;
+        }
+
+        // AFK players are invulnerable so they can't be killed while idle
+        // (gated by the server-wide AFK-protection toggle).
+        if (com.fleettools.events.AfkManager.isProtected(player.getUUID())) {
             cir.setReturnValue(false);
         }
     }

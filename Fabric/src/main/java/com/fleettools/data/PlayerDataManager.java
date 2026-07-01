@@ -199,6 +199,9 @@ public class PlayerDataManager {
         public String spawnWorld;
         public float spawnYaw;
         public float spawnPitch;
+        // Whether AFK players are invulnerable / ignored by mobs. Boxed so a missing
+        // value in older global.json files defaults to enabled (see getAfkProtection).
+        public Boolean afkProtection;
 
         public GlobalData() {
         }
@@ -386,6 +389,16 @@ public class PlayerDataManager {
 
     public static float getSpawnPitch() {
         return globalData.spawnPitch;
+    }
+
+    // AFK protection (invulnerability + mob-ignore). Defaults to enabled when unset.
+    public static boolean getAfkProtection() {
+        return globalData.afkProtection == null || globalData.afkProtection;
+    }
+
+    public static void setAfkProtection(boolean enabled, MinecraftServer server) {
+        globalData.afkProtection = enabled;
+        saveGlobalData(server);
     }
 
     // Back/last location methods

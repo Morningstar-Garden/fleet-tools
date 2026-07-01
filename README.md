@@ -81,6 +81,15 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 - **`/god [player]`** - Toggle invulnerability
 - Permission: `fleettools.god`, `fleettools.god.others` (default: operators only)
 
+### Vanish
+
+- **`/vanish`** (alias **`/v`**) - Toggle staff invisibility: your entity is hidden from other players and you're removed from their tab list
+- **`/vanish <player>`** - Vanish or unvanish another player
+- While vanished you're ignored by hostile mobs, and other staff (with `fleettools.vanish.see`) can still see you
+- Presence is hidden everywhere: entity, tab list, locator bar (the multiplayer compass), AFK broadcasts, sleep count, join/quit messages, advancement and death messages, the `/list` command, the server-list player count/sample, and command name-completions
+- Vanish persists across relogs (until server restart), so you quit and rejoin silently
+- Permission: `fleettools.vanish`, `fleettools.vanish.others`, `fleettools.vanish.see` (default: level 2)
+
 ### Warps System
 
 - **`/warp`** - List all available warps
@@ -116,7 +125,10 @@ This system works with modded inventories, trinkets, and backpacks, ensuring com
 - **`/afk`** - Toggle your AFK status (announced to the server; while AFK your name is shown **grayed out with an `[AFK]` tag** in the player list). Players are also auto-marked AFK after 5 minutes without moving, and cleared the moment they move or look around. AFK players are **ignored by the sleep check**, so they don't stop others from skipping the night.
   - **LuckPerms integration**: if LuckPerms is installed, AFK status is reflected in the player's prefix (a transient, in-memory prefix node that prepends a gray `[AFK]` and grays the prefix/name), so it flows automatically through **`%luckperms:prefix%`** — meaning it shows in StyledChat and StyledPlayerList wherever you already use that placeholder, with no format changes.
   - **Text Placeholder API**: alternatively, if the placeholder API is present, **`%fleettools:afk%`** is available (renders `[AFK] ` while AFK, otherwise nothing) for direct use in formats. When StyledPlayerList is present, Fleet Tools defers the raw player-list `[AFK]` tag to these integrations to avoid double tags.
-- Permission: `fleettools.msg`, `fleettools.broadcast`, `fleettools.afk` (default: operators for msg/broadcast, everyone for afk)
+- **`/afkprotect`** - Toggle **AFK protection** server-wide. While enabled (the default), AFK players take **no damage** and are **ignored by mobs** so they can't be killed while idle. The setting is persisted in `global.json` and survives restarts. Because AFK clears the instant a player moves or looks around, this protects genuinely-idle players without becoming a permanent combat shield.
+  - **`/afkprotect on`** / **`/afkprotect off`** - Explicitly enable or disable AFK protection
+  - **`/afkprotect status`** - Show whether AFK protection is currently enabled
+- Permission: `fleettools.msg`, `fleettools.broadcast`, `fleettools.afk` (default: operators for msg/broadcast, everyone for afk), `fleettools.afkprotect` (default: operators)
 
 ### Chat Formatting (LuckPerms prefix/suffix)
 
@@ -205,6 +217,7 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 | `/kill <player>`            | `fleettools.kill.others`     | 2 (operators) |
 | `/msg` `/tell` `/w`         | `fleettools.msg`             | 2 (operators) |
 | `/broadcast` `/bc`          | `fleettools.broadcast`       | 3 (admins)    |
+| `/afkprotect`               | `fleettools.afkprotect`      | 2 (operators) |
 | `/coords` (self)            | `fleettools.coords`          | everyone      |
 | `/coords <player>`          | `fleettools.coords.others`   | 2 (operators) |
 | `/daylight-pause`           | `fleettools.daylight`        | 2 (operators) |
@@ -219,7 +232,7 @@ Fleet Tools uses the Fabric Permissions API for permission management. All comma
 Fleet Tools stores player data in JSON files in the `fleettools` folder within your server directory:
 
 - `fleettools/players/` - Individual player data (homes, last locations, mute status, temporary bans, etc.)
-- `fleettools/global.json` - Global server data (spawn location, etc.)
+- `fleettools/global.json` - Global server data (spawn location, AFK-protection toggle, etc.)
 - `fleettools/warps.json` - Warp locations and data
 
 ### Automatic Features
