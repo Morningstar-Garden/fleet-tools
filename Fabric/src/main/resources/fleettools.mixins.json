@@ -20,7 +20,8 @@
     "VanishDeathMessageMixin",
     "VanishServerStatusMixin",
     "VanishSuggestionMixin",
-    "WaypointVanishMixin"
+    "WaypointVanishMixin",
+    "CustomClickMixin"
   ],
   "client": [],
   "server": [

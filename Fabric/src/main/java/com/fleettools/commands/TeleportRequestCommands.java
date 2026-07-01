@@ -9,8 +9,14 @@ import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import com.fleettools.data.PlayerDataManager;
 
@@ -19,6 +25,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static net.minecraft.commands.Commands.literal;
@@ -33,6 +40,13 @@ import static net.minecraft.commands.Commands.argument;
 // from the same requester replaces their previous one and becomes the most recent.
 public class TeleportRequestCommands {
     private static final long TIMEOUT_MS = 120_000L; // requests expire after 2 minutes
+
+    // Custom chat-click actions (handled by CustomClickMixin). Using a custom click event
+    // instead of run_command means the client sends the action straight to the server with
+    // no "run this command?" confirmation screen. The payload carries the target requester.
+    public static final Identifier ACCEPT_ACTION = Identifier.fromNamespaceAndPath("fleettools", "tpaccept");
+    public static final Identifier DENY_ACTION = Identifier.fromNamespaceAndPath("fleettools", "tpdeny");
+    public static final String PAYLOAD_REQUESTER = "requester";
 
     private static final class Request {
         final UUID requesterId;
@@ -115,16 +129,42 @@ public class TeleportRequestCommands {
         queue.remove(requester.getUUID());
         queue.put(requester.getUUID(), new Request(requester.getUUID(), requester.getName().getString(), here));
 
+        String requesterName = requester.getName().getString();
         String prompt = here
-                ? "§e" + requester.getName().getString() + "§a wants you to teleport to them."
-                : "§e" + requester.getName().getString() + "§a wants to teleport to you.";
-        recipient.sendSystemMessage(Component.literal(prompt + " §7Use §a/tpaccept§7 or §c/tpdeny§7 (optionally with their name)."), false);
+                ? "§e" + requesterName + "§a wants you to teleport to them."
+                : "§e" + requesterName + "§a wants to teleport to you.";
+        // Clickable buttons target this specific requester by name, so with several
+        // pending requests a click acts on exactly the right one.
+        MutableComponent message = Component.literal(prompt + " ")
+                .append(button("[Accept]", ACCEPT_ACTION, requesterName,
+                        "Accept " + requesterName + "'s request", ChatFormatting.GREEN))
+                .append(Component.literal(" "))
+                .append(button("[Deny]", DENY_ACTION, requesterName,
+                        "Deny " + requesterName + "'s request", ChatFormatting.RED));
+        recipient.sendSystemMessage(message, false);
         requester.sendSystemMessage(Component.literal("§aTeleport request sent to §e" + recipient.getName().getString() + "§a. §7(expires in 2 minutes)"), false);
         return 1;
     }
 
+    // Builds a bold, colored chat button that fires a custom click action (carrying the
+    // requester name) on click and shows the hover text on mouse-over. The custom action
+    // avoids the client's run-command confirmation prompt.
+    private static MutableComponent button(String label, Identifier action, String requesterName, String hover, ChatFormatting color) {
+        CompoundTag payload = new CompoundTag();
+        payload.putString(PAYLOAD_REQUESTER, requesterName);
+        return Component.literal(label).withStyle(style -> style
+                .withColor(color)
+                .withBold(true)
+                .withClickEvent(new ClickEvent.Custom(action, Optional.of(payload)))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal(hover))));
+    }
+
     private static int accept(CommandContext<CommandSourceStack> context, String requesterName) throws CommandSyntaxException {
-        ServerPlayer recipient = context.getSource().getPlayerOrException();
+        return acceptRequest(context.getSource().getPlayerOrException(), requesterName);
+    }
+
+    // Core accept logic, callable from the command or the chat-button click handler.
+    public static int acceptRequest(ServerPlayer recipient, String requesterName) {
         Request request = (requesterName == null)
                 ? takeMostRecent(recipient.getUUID())
                 : takeByName(recipient.getUUID(), requesterName);
@@ -136,7 +176,7 @@ public class TeleportRequestCommands {
             return 0;
         }
 
-        ServerPlayer requester = context.getSource().getServer().getPlayerList().getPlayer(request.requesterId);
+        ServerPlayer requester = recipient.level().getServer().getPlayerList().getPlayer(request.requesterId);
         if (requester == null) {
             recipient.sendSystemMessage(Component.literal("§e" + request.requesterName + "§c is no longer online."), false);
             return 0;
@@ -155,7 +195,11 @@ public class TeleportRequestCommands {
     }
 
     private static int deny(CommandContext<CommandSourceStack> context, String requesterName) throws CommandSyntaxException {
-        ServerPlayer recipient = context.getSource().getPlayerOrException();
+        return denyRequest(context.getSource().getPlayerOrException(), requesterName);
+    }
+
+    // Core deny logic, callable from the command or the chat-button click handler.
+    public static int denyRequest(ServerPlayer recipient, String requesterName) {
         Request request = (requesterName == null)
                 ? takeMostRecent(recipient.getUUID())
                 : takeByName(recipient.getUUID(), requesterName);
@@ -168,7 +212,7 @@ public class TeleportRequestCommands {
         }
 
         recipient.sendSystemMessage(Component.literal("§cDenied teleport request from §e" + request.requesterName + "§c."), false);
-        ServerPlayer requester = context.getSource().getServer().getPlayerList().getPlayer(request.requesterId);
+        ServerPlayer requester = recipient.level().getServer().getPlayerList().getPlayer(request.requesterId);
         if (requester != null) {
             requester.sendSystemMessage(Component.literal("§e" + recipient.getName().getString() + "§c denied your teleport request."), false);
         }

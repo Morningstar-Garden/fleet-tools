@@ -42,6 +42,7 @@ Consensual player-to-player teleporting (EssentialsX-style), available to all pl
 - **`/tpaccept [player]`** - Accept a request — the most recent one, or a specific player's
 - **`/tpdeny [player]`** - Deny a request — the most recent one, or a specific player's
 - **`/tptoggle`** - Toggle whether you accept incoming teleport requests
+- Incoming requests include clickable **[Accept]** / **[Deny]** buttons in chat that act on that specific requester — handy when several requests come in at once.
 - You can hold **multiple incoming requests** at once (one per requester); a new request from the same player replaces their old one. Requests expire after 2 minutes.
 - Permission: `fleettools.tpa`, `fleettools.tphere`, `fleettools.tpaccept`, `fleettools.tpdeny`, `fleettools.tptoggle` (default: everyone)
 
